@@ -16,15 +16,15 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
         probed.current = false;
         setFailed(false);
 
-        // Fast path: URL has a recognizable extension
-        if (isVideoUrl(src)) {
-            setMediaType('video');
-            return;
-        }
-
         // Fast path: URL is YouTube
         if (isYouTubeUrl(src)) {
             setMediaType('youtube');
+            return;
+        }
+
+        // Fast path: URL has a recognizable extension
+        if (isVideoUrl(src)) {
+            setMediaType('video');
             return;
         }
 
