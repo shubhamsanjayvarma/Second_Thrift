@@ -160,56 +160,60 @@ const ProductDetail = () => {
                     {/* Images */}
                     <div className="product-images">
                         <div className="product-main-image-container">
-                            {product.images?.length > 0 ? (
-                                <>
-                                    <AnimatePresence initial={false} custom={slideDirection}>
-                                        <motion.div
-                                            key={selectedImage}
-                                            custom={slideDirection}
-                                            initial={{ opacity: 0, x: slideDirection > 0 ? 100 : -100 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: slideDirection > 0 ? -100 : 100 }}
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                            className="product-main-image-slide"
-                                            drag="x"
-                                            dragConstraints={{ left: 0, right: 0 }}
-                                            dragElastic={0.2}
-                                            onDragEnd={(e, { offset }) => {
-                                                const swipe = offset.x;
-                                                if (swipe < -50) {
-                                                    handleNextImage();
-                                                } else if (swipe > 50) {
-                                                    handlePrevImage();
-                                                }
-                                            }}
-                                        >
-                                            <SmartMedia
+                            {product.images?.length > 0 ? (() => {
+                                const isCurrentYouTube = isYouTubeUrl(product.images[selectedImage]);
+                                return (
+                                    <>
+                                        <AnimatePresence initial={false} custom={slideDirection}>
+                                            <motion.div
                                                 key={selectedImage}
-                                                src={product.images[selectedImage]}
-                                                alt={product.name}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                        </motion.div>
-                                    </AnimatePresence>
+                                                custom={slideDirection}
+                                                initial={{ opacity: 0, x: slideDirection > 0 ? 100 : -100 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: slideDirection > 0 ? -100 : 100 }}
+                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                                className="product-main-image-slide"
+                                                drag={isCurrentYouTube ? false : "x"}
+                                                dragConstraints={{ left: 0, right: 0 }}
+                                                dragElastic={0.2}
+                                                onDragEnd={(e, { offset }) => {
+                                                    if (isCurrentYouTube) return;
+                                                    const swipe = offset.x;
+                                                    if (swipe < -50) {
+                                                        handleNextImage();
+                                                    } else if (swipe > 50) {
+                                                        handlePrevImage();
+                                                    }
+                                                }}
+                                            >
+                                                <SmartMedia
+                                                    key={selectedImage}
+                                                    src={product.images[selectedImage]}
+                                                    alt={product.name}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            </motion.div>
+                                        </AnimatePresence>
 
-                                    {product.images.length > 1 && (
-                                        <>
-                                            <button className="slider-nav-btn prev" onClick={handlePrevImage}><FiChevronLeft size={24} /></button>
-                                            <button className="slider-nav-btn next" onClick={handleNextImage}><FiChevronRight size={24} /></button>
+                                        {product.images.length > 1 && (
+                                            <>
+                                                <button className="slider-nav-btn prev" onClick={handlePrevImage}><FiChevronLeft size={24} /></button>
+                                                <button className="slider-nav-btn next" onClick={handleNextImage}><FiChevronRight size={24} /></button>
 
-                                            <div className="slider-dots">
-                                                {product.images.map((_, idx) => (
-                                                    <span
-                                                        key={idx}
-                                                        className={`slider-dot ${idx === selectedImage ? 'active' : ''}`}
-                                                        onClick={() => handleThumbnailClick(idx)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </>
-                            ) : (
+                                                <div className="slider-dots">
+                                                    {product.images.map((_, idx) => (
+                                                        <span
+                                                            key={idx}
+                                                            className={`slider-dot ${idx === selectedImage ? 'active' : ''}`}
+                                                            onClick={() => handleThumbnailClick(idx)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                );
+                            })() : (
                                 <div className="product-image-placeholder">
                                     <FiShoppingBag size={64} />
                                     <span>Product Image</span>
@@ -421,7 +425,7 @@ const ProductDetail = () => {
                     </motion.div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
