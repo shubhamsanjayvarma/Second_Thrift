@@ -37,15 +37,85 @@
     padding-bottom: 5rem;
 }
 
-.product-main-image {
+.product-main-image-container {
     aspect-ratio: 1;
     border-radius: 16px;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
+    position: relative;
 }
 
-.product-main-image img {
+.product-main-image-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.slider-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(10, 10, 15, 0.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+    opacity: 0;
+}
+
+.product-main-image-container:hover .slider-nav-btn {
+    opacity: 1;
+}
+
+.slider-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.slider-nav-btn.prev {
+    left: 1rem;
+}
+
+.slider-nav-btn.next {
+    right: 1rem;
+}
+
+.slider-dots {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    z-index: 10;
+}
+
+.slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.slider-dot.active {
+    background: white;
+    transform: scale(1.2);
+}
+
+.product-main-image-container img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -608,6 +678,20 @@
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 4px;
+    }
+
+    .slider-nav-btn {
+        opacity: 1;
+        width: 36px;
+        height: 36px;
+    }
+
+    .slider-nav-btn.prev {
+        left: 0.5rem;
+    }
+
+    .slider-nav-btn.next {
+        right: 0.5rem;
     }
 
     .product-thumb {

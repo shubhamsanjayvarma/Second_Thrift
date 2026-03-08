@@ -60,14 +60,30 @@ export const slugify = (text) => {
         .replace(/^-+|-+$/g, '');
 };
 
-// Check if a media URL is a video
+// Check if a media URL is a video (including YouTube clips)
 export const isVideoUrl = (url) => {
     if (!url) return false;
     // Check common video file extensions (with or without query params)
     if (/\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i.test(url)) return true;
     // Check if URL contains video content-type hint
     if (/video/i.test(url)) return true;
+    // Check if YouTube
+    if (isYouTubeUrl(url)) return true;
     return false;
+};
+
+// Check if URL is a YouTube link
+export const isYouTubeUrl = (url) => {
+    if (!url) return false;
+    return /youtube\.com|youtu\.be/.test(url);
+};
+
+// Extract YouTube video ID
+export const getYouTubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
 };
 
 // Order status labels with colors

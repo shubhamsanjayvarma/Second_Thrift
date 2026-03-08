@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { isVideoUrl } from '../../utils/helpers';
+import { isVideoUrl, isYouTubeUrl, getYouTubeId } from '../../utils/helpers';
 
 /**
  * SmartMedia: Renders <img> or <video> based on URL detection.
@@ -19,6 +19,12 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
         // Fast path: URL has a recognizable extension
         if (isVideoUrl(src)) {
             setMediaType('video');
+            return;
+        }
+
+        // Fast path: URL is YouTube
+        if (isYouTubeUrl(src)) {
+            setMediaType('youtube');
             return;
         }
 
@@ -92,6 +98,23 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
                 playsInline
                 onError={() => setFailed(true)}
                 {...videoProps}
+            />
+        );
+    }
+
+    if (mediaType === 'youtube') {
+        const youtubeId = getYouTubeId(src);
+        if (!youtubeId) {
+            return null; // Invalid YouTube link
+        }
+        return (
+            <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
+                title="YouTube video player"
+                className={className}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', border: 'none', ...style }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
             />
         );
     }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiTag, FiStar } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
-import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS } from '../../utils/helpers';
+import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, isYouTubeUrl } from '../../utils/helpers';
 import { defaultCategories } from '../../services/categories';
 import { subscribeToAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/products';
 import { uploadProductMedia } from '../../services/storage';
@@ -29,6 +29,7 @@ const AdminProducts = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
     const [tagInput, setTagInput] = useState('');
+    const [youtubeInput, setYoutubeInput] = useState('');
     const [brandSearch, setBrandSearch] = useState('');
     const [showBrandDropdown, setShowBrandDropdown] = useState(false);
     const brandRef = useRef(null);
@@ -139,6 +140,18 @@ const AdminProducts = () => {
 
     const removeMedia = (index) => setForm(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
     const removeNewMedia = (index) => setMediaFiles(prev => prev.filter((_, i) => i !== index));
+
+    const addYoutubeLink = () => {
+        const link = youtubeInput.trim();
+        if (!link) return;
+        if (!isYouTubeUrl(link)) {
+            toast.error('Please enter a valid YouTube link');
+            return;
+        }
+        setForm(prev => ({ ...prev, images: [...(prev.images || []), link] }));
+        setYoutubeInput('');
+        toast.success('YouTube link added');
+    };
 
     // Filter products
     const filteredProducts = products.filter(p => {
@@ -389,6 +402,24 @@ const AdminProducts = () => {
                                             <input type="file" accept="image/*,video/*" multiple onChange={(e) => { if (e.target.files) setMediaFiles(prev => [...prev, ...Array.from(e.target.files)]); }} />
                                         </div>
                                     </div>
+                                    <div className="ap-youtube-upload" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Paste YouTube Video Link here..."
+                                            value={youtubeInput}
+                                            onChange={e => setYoutubeInput(e.target.value)}
+                                            style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-color)', color: 'var(--text-color)' }}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addYoutubeLink(); } }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={addYoutubeLink}
+                                            style={{ padding: '0 20px', whiteSpace: 'nowrap' }}
+                                        >
+                                            Add Link
+                                        </button>
+                                    </div>
                                     {/* Preview Grid */}
                                     {(form.images?.length > 0 || mediaFiles.length > 0) && (
                                         <div className="ap-media-grid">
@@ -396,6 +427,8 @@ const AdminProducts = () => {
                                                 <div key={`existing-${i}`} className="ap-media-item">
                                                     {url.match(/\.(mp4|webm|mov)(\?.*)?$/i) || url.includes('video') ? (
                                                         <video src={url} muted className="ap-media-preview" />
+                                                    ) : isYouTubeUrl(url) ? (
+                                                        <SmartMedia src={url} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                     ) : (
                                                         <SmartMedia src={url} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} />
                                                     )}
