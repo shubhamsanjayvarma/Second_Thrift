@@ -61,6 +61,9 @@ const Checkout = () => {
         toast.success(`${label} copied!`);
     };
 
+    const [isVerified, setIsVerified] = useState(false);
+    const [verifying, setVerifying] = useState(false);
+
     // Send shipping details to admin WhatsApp (Invoice format)
     const sendShippingToWhatsApp = () => {
         if (!paymentInfo) return;
@@ -120,12 +123,50 @@ ${address.country}
 ━━━━━━━━━━━━━━━━━━
 
 💳 *Payment:* Bank Transfer (Wise)
-⚠️ *Status:* PENDING PAYMENT VERIFICATION
+⚠️ *Status:* ${isVerified ? 'VERIFIED BY SYSTEM' : 'PENDING PAYMENT VERIFICATION'}
 
 ━━━━━━━━━━━━━━━━━━
-_I have completed the bank transfer. Please verify the payment and process my order._`;
+_I have completed the bank transfer. Please process my order._`;
 
         window.open(`https://wa.me/919909527515?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+
+    const handleVerifyPayment = async () => {
+        if (!paymentInfo) return;
+        setVerifying(true);
+        toast.loading('Checking Wise for your payment...', { id: 'verify-toast' });
+
+        try {
+            const res = await fetch('/api/wise/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: paymentInfo.amount,
+                    reference: paymentInfo.reference
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.verified) {
+                setIsVerified(true);
+                toast.success('Payment Verified! Your order is confirmed.', { id: 'verify-toast' });
+                // If you had a backend order update, you would call `updateOrderStatus(paymentInfo.orderId, 'paid')` here
+            } else if (res.status === 403) {
+                // Wise API blocked us due to SCA Security Rules (2FA)
+                toast.error('Bank security blocked automatic check. Please use manual WhatsApp verification.', { id: 'verify-toast', duration: 6000 });
+                // We fallback to letting them manually send the WhatsApp message
+                setIsVerified('manual_fallback');
+            } else {
+                toast.error(data.message || 'Payment not found. Ensure you used the correct Reference and Amount.', { id: 'verify-toast', duration: 5000 });
+            }
+        } catch (err) {
+            console.error('Frontend verify error:', err);
+            toast.error('Failed to connect to verification server.', { id: 'verify-toast' });
+            setIsVerified('manual_fallback'); // Allow bypass if our own server is down
+        } finally {
+            setVerifying(false);
+        }
     };
 
     const handlePlaceOrder = async () => {
@@ -366,10 +407,35 @@ _I have completed the bank transfer. Please verify the payment and process my or
                                 {/* Send Shipping Details (MANDATORY) */}
                                 <div className="shipping-whatsapp-card" style={{ border: '2px solid var(--primary)', background: 'rgba(56, 189, 248, 0.05)' }}>
                                     <h3>Final Step: Verify Payment</h3>
-                                    <p style={{ color: 'var(--text-primary)' }}>Your order will not be shipped until you send your payment screenshot and address to the Admin via WhatsApp.</p>
-                                    <button className="btn btn-whatsapp btn-lg w-full" onClick={sendShippingToWhatsApp}>
-                                        <FaWhatsapp size={18} /> I Have Paid — Send Details Now
-                                    </button>
+
+                                    {!isVerified ? (
+                                        <>
+                                            <p style={{ color: 'var(--text-primary)' }}>Click below once you have completed the exact bank transfer. Our system will securely check our Wise account to verify your payment.</p>
+                                            <button
+                                                className="btn btn-primary btn-lg w-full"
+                                                onClick={handleVerifyPayment}
+                                                disabled={verifying}
+                                                style={{ marginBottom: '12px' }}
+                                            >
+                                                {verifying ? 'Checking Bank...' : 'I Have Paid — Verify Payment'}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div style={{ padding: '12px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success)', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)' }}>
+                                                <FiCheck size={20} />
+                                                <strong>{isVerified === 'manual_fallback' ? 'Proceed to Manual Verification' : 'Payment Verified Successfully!'}</strong>
+                                            </div>
+                                            <p style={{ color: 'var(--text-primary)', fontSize: '14px', marginBottom: '12px' }}>
+                                                {isVerified === 'manual_fallback'
+                                                    ? 'Bank security requires manual verification. Please send your payment screenshot and address below to finalize your order.'
+                                                    : 'Awesome! Send your shipping address to our team to dispatch your order immediately.'}
+                                            </p>
+                                            <button className="btn btn-whatsapp btn-lg w-full" onClick={sendShippingToWhatsApp}>
+                                                <FaWhatsapp size={18} /> Send Address to Admin
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="confirmation-actions">

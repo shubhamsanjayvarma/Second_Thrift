@@ -163,6 +163,72 @@ app.get('/api/media', async (req, res) => {
     }
 });
 
+// ============ WISE SECURE VERIFICATION ============
+// This checks the Wise API to confirm if the exact expected funds have arrived.
+app.post('/api/wise/verify', async (req, res) => {
+    try {
+        const { amount, reference } = req.body;
+        if (!amount || !reference) {
+            return res.status(400).json({ error: 'Missing amount or reference' });
+        }
+
+        const apiKey = process.env.WISE_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'Wise integration not configured on server (Missing API Key)' });
+        }
+
+        const axios = (await import('axios')).default;
+
+        // Target Business Profile ID retrieved via API testing
+        const profileId = '78414630';
+        // Target EUR Balance ID retrieved via API testing
+        const eurBalanceId = '138439888';
+
+        // NOTE: Wise API generally requires SCA (Strong Customer Authentication / 2FA) to read actual bank statements via API. 
+        // If the API Key doesn't have SCA exemptions for this endpoint, Wise returns 403 Forbidden.
+        // We will attempt to fetch statements for the last 7 days to find the matching transaction.
+
+        const end = new Date();
+        const start = new Date(end.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+        try {
+            const statementRes = await axios.get(
+                `https://api.transferwise.com/v1/profiles/${profileId}/balance-statements/${eurBalanceId}/statement.json?intervalStart=${start.toISOString()}&intervalEnd=${end.toISOString()}`,
+                { headers: { Authorization: `Bearer ${apiKey}` } }
+            );
+
+            const transactions = statementRes.data.transactions || [];
+
+            // Search for an incoming CREDIT transaction that exactly matches the expected amount AND reference
+            const matchingTx = transactions.find(tx =>
+                tx.type === 'CREDIT' &&
+                Math.abs(tx.amount.value) === parseFloat(amount) &&
+                (tx.reference?.toUpperCase() || '').includes(reference.toUpperCase())
+            );
+
+            if (matchingTx) {
+                return res.json({ verified: true, transaction: matchingTx });
+            } else {
+                return res.json({ verified: false, message: 'Payment not yet received or still processing in Wise.' });
+            }
+
+        } catch (wiseErr) {
+            // Check if Wise blocked the request due to SCA / 2FA requirements
+            if (wiseErr.response?.status === 403) {
+                console.error('Wise API requires 2FA SCA exception. Payment must be manually verified.');
+                return res.status(403).json({
+                    error: 'Wise API strict security blocked automatic verification. Please instruct the customer to send their payment screenshot via WhatsApp.'
+                });
+            }
+            throw wiseErr;
+        }
+
+    } catch (err) {
+        console.error('Wise verify error:', err.response?.data || err.message);
+        res.status(500).json({ error: 'Failed to verify payment with Wise.' });
+    }
+});
+
 // Configure Vercel to NOT parse the body so Multer can handle FormData uploads
 export const config = {
     api: {
