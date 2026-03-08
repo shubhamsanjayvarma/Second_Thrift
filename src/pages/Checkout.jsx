@@ -7,7 +7,6 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { createOrder } from '../services/orders';
-import { getPaymentDetails } from '../services/wise';
 import { formatPrice, COUNTRIES_BY_REGION, calculateOrderTotals } from '../utils/helpers';
 import './Checkout.css';
 
@@ -18,7 +17,7 @@ const Checkout = () => {
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    const [paymentInfo, setPaymentInfo] = useState(null);
+    const [orderInfo, setOrderInfo] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
     const [countrySearch, setCountrySearch] = useState('');
     const [showCountryDropdown, setShowCountryDropdown] = useState(false);
@@ -61,113 +60,7 @@ const Checkout = () => {
         toast.success(`${label} copied!`);
     };
 
-    const [isVerified, setIsVerified] = useState(false);
-    const [verifying, setVerifying] = useState(false);
-
-    // Send shipping details to admin WhatsApp (Invoice format)
-    const sendShippingToWhatsApp = () => {
-        if (!paymentInfo) return;
-
-        const orderDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        const orderTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-        // Build itemized list with numbering
-        const savedItems = orderItems.length > 0 ? orderItems : items;
-        const orderItemsList = savedItems.length > 0
-            ? savedItems.map((item, i) => {
-                const lineTotal = (item.price * item.quantity).toFixed(2);
-                return `${i + 1}. ${item.name}\n    Size: ${item.size || 'N/A'} | Qty: ${item.quantity} | €${item.price.toFixed(2)} × ${item.quantity} = *€${lineTotal}*`;
-            }).join('\n\n')
-            : '(See admin panel for order details)';
-
-        // Calculate values
-        const totalAmt = paymentInfo.amount.toFixed(2);
-
-        const msg = `╔══════════════════════════╗
-       *SECOND THRIFT*
-         _Order Invoice_
-╚══════════════════════════╝
-
-📋 *Invoice No:* ${paymentInfo.reference}
-📅 *Date:* ${orderDate} at ${orderTime}
-
-━━━━━━━━━━━━━━━━━━
-
-👤 *CUSTOMER*
-Name: ${address.name}
-Email: ${user?.email || 'N/A'}
-Phone: ${address.phone}
-
-━━━━━━━━━━━━━━━━━━
-
-📦 *ORDER ITEMS*
-
-${orderItemsList}
-
-━━━━━━━━━━━━━━━━━━
-
-💰 *TOTAL TO BE PAID*
-*€${totalAmt}*
-_(All inclusive — no extra charges)_
-
-━━━━━━━━━━━━━━━━━━
-
-📍 *SHIPPING ADDRESS*
-${address.name}
-${address.street}
-${address.city}, ${address.postalCode}
-${address.region}
-${address.country}
-📱 ${address.phone}
-
-━━━━━━━━━━━━━━━━━━
-
-💳 *Payment:* Bank Transfer (Wise)
-⚠️ *Status:* ${isVerified ? 'VERIFIED BY SYSTEM' : 'PENDING PAYMENT VERIFICATION'}
-
-━━━━━━━━━━━━━━━━━━
-_I have completed the bank transfer. Please process my order._`;
-
-        window.open(`https://wa.me/919909527515?text=${encodeURIComponent(msg)}`, '_blank');
-    };
-
-    const handleVerifyPayment = async () => {
-        if (!paymentInfo) return;
-        setVerifying(true);
-        toast.loading('Checking Wise for your payment...', { id: 'verify-toast' });
-
-        try {
-            const res = await fetch('/api/wise/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: paymentInfo.amount,
-                    reference: paymentInfo.reference
-                })
-            });
-
-            const data = await res.json();
-
-            if (res.ok && data.verified) {
-                setIsVerified(true);
-                toast.success('Payment Verified! Your order is confirmed.', { id: 'verify-toast' });
-                // If you had a backend order update, you would call `updateOrderStatus(paymentInfo.orderId, 'paid')` here
-            } else if (res.status === 403) {
-                // Wise API blocked us due to SCA Security Rules (2FA)
-                toast.error('Bank security blocked automatic check. Please use manual WhatsApp verification.', { id: 'verify-toast', duration: 6000 });
-                // We fallback to letting them manually send the WhatsApp message
-                setIsVerified('manual_fallback');
-            } else {
-                toast.error(data.message || 'Payment not found. Ensure you used the correct Reference and Amount.', { id: 'verify-toast', duration: 5000 });
-            }
-        } catch (err) {
-            console.error('Frontend verify error:', err);
-            toast.error('Failed to connect to verification server.', { id: 'verify-toast' });
-            setIsVerified('manual_fallback'); // Allow bypass if our own server is down
-        } finally {
-            setVerifying(false);
-        }
-    };
+    // (Removed specific WhatsApp invoice logic, as Razorpay is automated now)
 
     const handlePlaceOrder = async () => {
         if (!user) { toast.error('Please login to place order'); navigate('/login'); return; }
@@ -175,30 +68,99 @@ _I have completed the bank transfer. Please process my order._`;
             toast.error('Please fill in all address fields'); return;
         }
         setLoading(true);
+
         try {
-            const orderData = {
-                userId: user.uid, userEmail: user.email,
-                items: items.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity, size: i.size })),
-                shippingAddress: address, subtotal: total, shipping: 0, tax: 0, total,
+            // 1. Create Order on our backend (Razorpay)
+            toast.loading('Initializing payment...', { id: 'payment-toast' });
+
+            const receipt = `rcpt_${Date.now()}`;
+            const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/razorpay/order` : '/api/razorpay/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: total,
+                    currency: 'EUR',
+                    receipt: receipt
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to create payment order');
+            const razorpayOrder = await res.json();
+
+            // 2. Open Razorpay Checkout Modal
+            const options = {
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Use Razorpay test key from environment
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                name: "Second Thrift",
+                description: "Order Payment",
+                order_id: razorpayOrder.id,
+                handler: async function (response) {
+                    // 3. Payment Success - Verify Signature on backend
+                    toast.loading('Verifying payment securely...', { id: 'payment-toast' });
+                    try {
+                        const verifyRes = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/razorpay/verify` : '/api/razorpay/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+
+                        const verifyData = await verifyRes.json();
+
+                        if (verifyRes.ok && verifyData.verified) {
+                            // 4. Verification successful, Save to Firestore
+                            toast.loading('Finalizing order...', { id: 'payment-toast' });
+                            const orderData = {
+                                userId: user.uid, userEmail: user.email,
+                                items: items.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity, size: i.size })),
+                                shippingAddress: address, subtotal: total, shipping: 0, tax: 0, total,
+                                paymentStatus: 'paid', // Mark as paid!
+                                paymentMethod: 'razorpay',
+                                razorpayOrderId: response.razorpay_order_id,
+                                razorpayPaymentId: response.razorpay_payment_id
+                            };
+
+                            const newOrderId = await createOrder(orderData);
+
+                            setOrderInfo({ orderId: newOrderId, ...orderData });
+                            setOrderItems([...items]);
+                            clearCart();
+                            setStep(4);
+
+                            toast.success('Payment successful! Order confirmed.', { id: 'payment-toast' });
+                        } else {
+                            toast.error('Payment verification failed. Please contact support.', { id: 'payment-toast' });
+                        }
+                    } catch (verifyErr) {
+                        console.error('Verification error:', verifyErr);
+                        toast.error('An error occurred during verification.', { id: 'payment-toast' });
+                    }
+                },
+                prefill: {
+                    name: address.name,
+                    email: user.email,
+                    contact: address.phone
+                },
+                theme: {
+                    color: "#0a0a0f" // Theme color from our app
+                }
             };
 
-            let orderId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-            try {
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
-                orderId = await Promise.race([createOrder(orderData), timeoutPromise]);
-            } catch (e) {
-                console.warn('Firestore save failed, using local ID', e);
-            }
+            const rzp1 = new window.Razorpay(options);
 
-            const payment = getPaymentDetails(orderId, total);
-            setPaymentInfo({ ...payment, orderId });
-            setOrderItems([...items]); // Save items before clearing cart
-            clearCart();
-            setStep(4);
-            toast.success('Order placed! Complete payment via bank transfer.');
+            rzp1.on('payment.failed', function (response) {
+                toast.error(`Payment failed: ${response.error.description}`, { id: 'payment-toast' });
+            });
+
+            rzp1.open();
+
         } catch (err) {
             console.error(err);
-            toast.error('Failed to place order.');
+            toast.error('Failed to initialize payment gateway.', { id: 'payment-toast' });
         } finally {
             setLoading(false);
         }
@@ -315,18 +277,18 @@ _I have completed the bank transfer. Please process my order._`;
                             </motion.div>
                         )}
 
-                        {/* ========== STEP 3: PAYMENT (Simple) ========== */}
+                        {/* ========== STEP 3: PAYMENT ========== */}
                         {step === 3 && (
                             <motion.div className="checkout-section" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                 <h2>Payment</h2>
-                                <div className="wise-simple-card">
+                                <div className="wise-simple-card" style={{ border: '1px solid var(--border-color)', background: 'var(--surface-color)' }}>
                                     <div className="wise-simple-header">
-                                        <div className="wise-badge"><span className="wise-brand">wise</span></div>
-                                        <span>Secure Payment</span>
+                                        <div className="wise-badge" style={{ background: '#3395FF', color: '#fff', fontSize: '10px', padding: '2px 6px' }}><span className="wise-brand">Razorpay</span></div>
+                                        <span>Secure Checkout</span>
                                     </div>
                                     <p className="wise-simple-desc">
-                                        Your payment will be processed through <strong>Wise</strong> — the trusted international payment platform.
-                                        You can pay using <strong>bank transfer, credit card, or debit card</strong>.
+                                        Your payment will be processed securely via <strong>Razorpay</strong>.
+                                        You can pay using credit card, debit card, or other international payment methods.
                                     </p>
                                     <div className="wise-simple-total">
                                         <span>Total Amount</span>
@@ -335,110 +297,28 @@ _I have completed the bank transfer. Please process my order._`;
                                 </div>
                                 <div className="checkout-nav">
                                     <button className="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
-                                    <button className="btn btn-wise btn-lg" onClick={handlePlaceOrder} disabled={loading}>
-                                        {loading ? 'Placing Order...' : `Pay ${formatPrice(total)} via Wise`}
+                                    <button className="btn btn-primary btn-lg" onClick={handlePlaceOrder} disabled={loading}>
+                                        {loading ? 'Opening Gateway...' : `Pay ${formatPrice(total)} Now`}
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
-                        {/* ========== STEP 4: PAYMENT REQUIRED ========== */}
-                        {step === 4 && paymentInfo && (
+                        {/* ========== STEP 4: ORDER COMPLETE ========== */}
+                        {step === 4 && orderInfo && (
                             <motion.div className="checkout-section" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                                <div className="confirmation-header" style={{ color: 'var(--warning, #eab308)' }}>
-                                    <div className="confirmation-icon" style={{ background: 'var(--warning, #eab308)' }}><FiCreditCard size={32} color="#000" /></div>
-                                    <h2 style={{ color: 'var(--warning, #eab308)' }}>Action Required: Complete Your Payment</h2>
-                                    <p>Your order is pending. Please transfer the exact amount below to confirm.</p>
+                                <div className="confirmation-header" style={{ color: 'var(--success)' }}>
+                                    <div className="confirmation-icon" style={{ background: 'var(--success)' }}><FiCheck size={32} color="#000" /></div>
+                                    <h2 style={{ color: 'var(--success)' }}>Payment Successful!</h2>
+                                    <p style={{ color: 'var(--text-secondary)' }}>Thank you for your order. We are preparing it for shipment.</p>
                                 </div>
 
-                                {/* Wise Payment Details */}
-                                <div className="wise-payment-card">
-                                    <div className="wise-payment-header">
-                                        <div className="wise-badge"><span className="wise-brand">wise</span></div>
-                                        <span className="wise-payment-amount">{formatPrice(paymentInfo.amount)}</span>
-                                    </div>
-
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                                        Send your payment using the details below. Ensure you transfer exactly <strong>€{paymentInfo.amount.toFixed(2)}</strong>. <br />
-                                        <span style={{ color: 'var(--error)' }}>If the amount does not match exactly, your order will be cancelled.</span>
-                                    </p>
-
-                                    <div className="wise-payment-details">
-                                        <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.accountHolder, 'Account Holder')}>
-                                            <div className="wise-detail-label">Account Holder</div>
-                                            <div className="wise-detail-value">
-                                                <strong>{paymentInfo.accountHolder}</strong>
-                                                <FiCopy size={14} />
-                                            </div>
-                                        </div>
-                                        <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.iban, 'IBAN')}>
-                                            <div className="wise-detail-label">IBAN</div>
-                                            <div className="wise-detail-value">
-                                                <strong style={{ letterSpacing: '1px' }}>{paymentInfo.iban}</strong>
-                                                <FiCopy size={14} />
-                                            </div>
-                                        </div>
-                                        <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.amount.toFixed(2), 'Amount')}>
-                                            <div className="wise-detail-label">Exact Amount (EUR)</div>
-                                            <div className="wise-detail-value">
-                                                <strong>€{paymentInfo.amount.toFixed(2)}</strong>
-                                                <FiCopy size={14} />
-                                            </div>
-                                        </div>
-                                        <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')}>
-                                            <div className="wise-detail-label">Transfer Reference <span style={{ color: 'var(--error)', fontSize: '11px' }}>(Required)</span></div>
-                                            <div className="wise-detail-value">
-                                                <strong className="wise-ref">{paymentInfo.reference}</strong>
-                                                <FiCopy size={14} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <a href={`https://wise.com/pay/business/ketanbhaisureshbhaigorasava?amount=${paymentInfo.amount.toFixed(2)}&currency=EUR`} target="_blank" rel="noopener noreferrer" className="btn btn-wise btn-lg w-full">
-                                        <FiExternalLink /> Pay Exactly €{paymentInfo.amount.toFixed(2)} via Wise
-                                    </a>
-
-                                    <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-                                        <strong style={{ color: 'var(--text-primary)' }}>Bank:</strong> {paymentInfo.bankName}<br />
-                                        <span style={{ fontSize: '12px' }}>{paymentInfo.bankAddress}</span>
-                                    </div>
+                                <div className="wise-payment-card" style={{ textAlign: 'center', padding: '32px' }}>
+                                    <h3 style={{ marginBottom: '16px' }}>Order #{orderInfo.orderId.substring(0, 8).toUpperCase()}</h3>
+                                    <p>A confirmation has been sent to your email.</p>
                                 </div>
 
-                                {/* Send Shipping Details (MANDATORY) */}
-                                <div className="shipping-whatsapp-card" style={{ border: '2px solid var(--primary)', background: 'rgba(56, 189, 248, 0.05)' }}>
-                                    <h3>Final Step: Verify Payment</h3>
-
-                                    {!isVerified ? (
-                                        <>
-                                            <p style={{ color: 'var(--text-primary)' }}>Click below once you have completed the exact bank transfer. Our system will securely check our Wise account to verify your payment.</p>
-                                            <button
-                                                className="btn btn-primary btn-lg w-full"
-                                                onClick={handleVerifyPayment}
-                                                disabled={verifying}
-                                                style={{ marginBottom: '12px' }}
-                                            >
-                                                {verifying ? 'Checking Bank...' : 'I Have Paid — Verify Payment'}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div style={{ padding: '12px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success)', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)' }}>
-                                                <FiCheck size={20} />
-                                                <strong>{isVerified === 'manual_fallback' ? 'Proceed to Manual Verification' : 'Payment Verified Successfully!'}</strong>
-                                            </div>
-                                            <p style={{ color: 'var(--text-primary)', fontSize: '14px', marginBottom: '12px' }}>
-                                                {isVerified === 'manual_fallback'
-                                                    ? 'Bank security requires manual verification. Please send your payment screenshot and address below to finalize your order.'
-                                                    : 'Awesome! Send your shipping address to our team to dispatch your order immediately.'}
-                                            </p>
-                                            <button className="btn btn-whatsapp btn-lg w-full" onClick={sendShippingToWhatsApp}>
-                                                <FaWhatsapp size={18} /> Send Address to Admin
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="confirmation-actions">
+                                <div className="confirmation-actions" style={{ marginTop: '24px' }}>
                                     <Link to="/orders" className="btn btn-ghost">View My Orders</Link>
                                     <Link to="/shop" className="btn btn-primary">Continue Shopping</Link>
                                 </div>
@@ -456,9 +336,9 @@ _I have completed the bank transfer. Please process my order._`;
                                 ))}
                                 <div className="summary-row summary-total"><span>Total</span><span>{formatPrice(total)}</span></div>
                                 <p className="free-shipping-note" style={{ color: 'var(--success)', marginTop: '8px' }}>✓ Shipping & taxes included</p>
-                                <div className="wise-mini-badge">
-                                    <span className="wise-brand-sm">wise</span>
-                                    <span>Secure Payment</span>
+                                <div className="wise-mini-badge" style={{ background: 'rgba(51, 149, 255, 0.1)' }}>
+                                    <span className="wise-brand-sm" style={{ color: '#3395FF' }}>Razorpay</span>
+                                    <span>Secure Payments</span>
                                 </div>
                             </div>
                         </aside>

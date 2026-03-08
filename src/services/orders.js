@@ -8,10 +8,10 @@ const ordersRef = collection(db, 'orders');
 
 export const createOrder = async (orderData) => {
     const docRef = await addDoc(ordersRef, {
-        ...orderData,
-        status: 'pending',
+        status: 'pending', // Default status unless overridden
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        ...orderData,
     });
     return docRef.id;
 };

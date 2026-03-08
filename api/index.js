@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
 
 const app = express();
 
@@ -163,69 +165,65 @@ app.get('/api/media', async (req, res) => {
     }
 });
 
-// ============ WISE SECURE VERIFICATION ============
-// This checks the Wise API to confirm if the exact expected funds have arrived.
-app.post('/api/wise/verify', async (req, res) => {
+// ============ RAZORPAY INTEGRATION ============
+
+// 1. Create Order
+app.post('/api/razorpay/order', async (req, res) => {
     try {
-        const { amount, reference } = req.body;
-        if (!amount || !reference) {
-            return res.status(400).json({ error: 'Missing amount or reference' });
+        const { amount, currency = 'EUR', receipt } = req.body;
+
+        if (!amount) {
+            return res.status(400).json({ error: 'Amount is required' });
         }
 
-        const apiKey = process.env.WISE_API_KEY;
-        if (!apiKey) {
-            return res.status(500).json({ error: 'Wise integration not configured on server (Missing API Key)' });
+        const key_id = process.env.RAZORPAY_KEY_ID;
+        const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+        if (!key_id || !key_secret) {
+            return res.status(500).json({ error: 'Razorpay keys not configured on server' });
         }
 
-        const axios = (await import('axios')).default;
+        const instance = new Razorpay({ key_id, key_secret });
 
-        // Target Business Profile ID retrieved via API testing
-        const profileId = '78414630';
-        // Target EUR Balance ID retrieved via API testing
-        const eurBalanceId = '138439888';
+        const options = {
+            amount: Math.round(amount * 100), // Razorpay expects amount in smallest currency subunit (e.g. cents)
+            currency,
+            receipt: receipt || `receipt_${Date.now()}`
+        };
 
-        // NOTE: Wise API generally requires SCA (Strong Customer Authentication / 2FA) to read actual bank statements via API. 
-        // If the API Key doesn't have SCA exemptions for this endpoint, Wise returns 403 Forbidden.
-        // We will attempt to fetch statements for the last 7 days to find the matching transaction.
-
-        const end = new Date();
-        const start = new Date(end.getTime() - (7 * 24 * 60 * 60 * 1000));
-
-        try {
-            const statementRes = await axios.get(
-                `https://api.transferwise.com/v1/profiles/${profileId}/balance-statements/${eurBalanceId}/statement.json?intervalStart=${start.toISOString()}&intervalEnd=${end.toISOString()}`,
-                { headers: { Authorization: `Bearer ${apiKey}` } }
-            );
-
-            const transactions = statementRes.data.transactions || [];
-
-            // Search for an incoming CREDIT transaction that exactly matches the expected amount AND reference
-            const matchingTx = transactions.find(tx =>
-                tx.type === 'CREDIT' &&
-                Math.abs(tx.amount.value) === parseFloat(amount) &&
-                (tx.reference?.toUpperCase() || '').includes(reference.toUpperCase())
-            );
-
-            if (matchingTx) {
-                return res.json({ verified: true, transaction: matchingTx });
-            } else {
-                return res.json({ verified: false, message: 'Payment not yet received or still processing in Wise.' });
-            }
-
-        } catch (wiseErr) {
-            // Check if Wise blocked the request due to SCA / 2FA requirements
-            if (wiseErr.response?.status === 403) {
-                console.error('Wise API requires 2FA SCA exception. Payment must be manually verified.');
-                return res.status(403).json({
-                    error: 'Wise API strict security blocked automatic verification. Please instruct the customer to send their payment screenshot via WhatsApp.'
-                });
-            }
-            throw wiseErr;
-        }
-
+        const order = await instance.orders.create(options);
+        res.json(order);
     } catch (err) {
-        console.error('Wise verify error:', err.response?.data || err.message);
-        res.status(500).json({ error: 'Failed to verify payment with Wise.' });
+        console.error('Razorpay Order error:', err);
+        res.status(500).json({ error: 'Failed to create Razorpay order' });
+    }
+});
+
+// 2. Verify Payment Signature
+app.post('/api/razorpay/verify', async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+        const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+        if (!key_secret) {
+            return res.status(500).json({ error: 'Razorpay key secret not configured on server' });
+        }
+
+        // Verify the signature securely
+        const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const generated_signature = crypto
+            .createHmac('sha256', key_secret)
+            .update(text)
+            .digest('hex');
+
+        if (generated_signature === razorpay_signature) {
+            return res.json({ verified: true, message: 'Payment successfully verified' });
+        } else {
+            return res.status(400).json({ verified: false, error: 'Invalid payment signature' });
+        }
+    } catch (err) {
+        console.error('Razorpay Verify error:', err);
+        res.status(500).json({ error: 'Failed to verify payment signature' });
     }
 });
 
