@@ -1,0 +1,338 @@
+/* ===== AUTH PAGES (LOGIN / REGISTER) — EVISU STYLE ===== */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+}
+
+.auth-bg-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.auth-bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.auth-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 440px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 3rem;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-logo {
+    height: 50px;
+    margin: 0 auto 1.5rem;
+    mix-blend-mode: screen;
+    filter: brightness(1.4) contrast(1.1);
+}
+
+.auth-header h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.auth-header p {
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.input-group {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    z-index: 1;
+}
+
+.input-group input {
+    padding-left: 42px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.8rem;
+}
+
+.input-group input:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+}
+
+.input-toggle {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.3s ease;
+}
+
+.input-toggle:hover {
+    color: #fff;
+}
+
+.auth-extras {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.auth-remember {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}
+
+.auth-remember input {
+    width: auto;
+    accent-color: #fff;
+}
+
+.auth-terms {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+}
+
+.auth-terms input {
+    width: auto;
+    accent-color: #fff;
+}
+
+.auth-terms a {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.auth-switch a {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Auth page buttons */
+.auth-form .btn-primary {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 0;
+    transition: all 0.3s ease;
+    box-shadow: none;
+}
+
+.auth-form .btn-primary:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+    box-shadow: none;
+}
+
+/* Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.auth-divider span {
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Google button */
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-google:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ═══ MOBILE RESPONSIVE ═══ */
+@media (max-width: 768px) {
+    .auth-page {
+        padding: 1.5rem 1rem;
+        align-items: flex-start;
+        padding-top: 5rem;
+    }
+
+    .auth-card {
+        padding: 2rem 1.5rem;
+        border-radius: 16px;
+    }
+
+    .auth-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .auth-header p {
+        font-size: 0.7rem;
+    }
+
+    .auth-logo {
+        height: 40px;
+        margin-bottom: 1rem;
+    }
+
+    .auth-form .btn-primary {
+        padding: 0.75rem 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-page {
+        padding: 0.75rem;
+        padding-top: 4rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem 1.25rem;
+        border-radius: 14px;
+        max-width: 100%;
+    }
+
+    .auth-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .input-group input {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .auth-extras {
+        font-size: 0.7rem;
+    }
+
+    .auth-switch {
+        font-size: 0.7rem;
+    }
+
+    .auth-divider {
+        margin: 1rem 0;
+    }
+
+    .btn-google {
+        padding: 0.7rem 1rem;
+        font-size: 0.8rem;
+    }
+}

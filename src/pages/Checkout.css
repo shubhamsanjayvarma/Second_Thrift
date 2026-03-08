@@ -1,0 +1,815 @@
+/* ===== CHECKOUT PAGE — PREMIUM DESIGN ===== */
+
+.checkout-page {
+    padding-top: 100px;
+    padding-bottom: 5rem;
+    min-height: 100vh;
+    background: #0a0a0f;
+}
+
+.checkout-empty {
+    text-align: center;
+    padding: 5rem 0;
+}
+
+.checkout-empty h2 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    margin-bottom: 1rem;
+}
+
+/* Steps */
+.checkout-steps {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+}
+
+.checkout-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 50px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.checkout-step.active {
+    color: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.checkout-step.current {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+    font-weight: 600;
+}
+
+.step-icon {
+    display: flex;
+}
+
+/* Grid */
+.checkout-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 2rem;
+    align-items: start;
+}
+
+.checkout-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.checkout-section h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    margin-bottom: 1.5rem;
+}
+
+/* Form */
+.checkout-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-required-note {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 0.25rem;
+    font-weight: 400;
+}
+
+.checkout-form input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.8rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.checkout-form input::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.checkout-form input:focus {
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.03);
+}
+
+.checkout-form input:required:valid {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+/* Country Picker */
+.country-picker {
+    position: relative;
+}
+
+.country-picker-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.25);
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.country-picker-trigger.has-value {
+    color: #fff;
+}
+
+.country-picker-trigger:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.country-chevron {
+    transition: transform 0.3s ease;
+}
+
+.country-chevron.open {
+    transform: rotate(180deg);
+}
+
+.country-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #1a1a28;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.country-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.country-search-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 0.8rem;
+    font-family: 'Poppins', sans-serif;
+    padding: 0;
+}
+
+.country-list {
+    max-height: 240px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.country-region-label {
+    padding: 0.5rem 1rem;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(255, 255, 255, 0.03);
+    position: sticky;
+    top: 0;
+}
+
+.country-option {
+    padding: 0.5rem 1rem 0.5rem 1.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.country-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.country-option.selected {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-weight: 600;
+}
+
+.country-no-results {
+    padding: 1rem;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.8rem;
+}
+
+/* Navigation */
+.checkout-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1.5rem;
+}
+
+.checkout-nav .btn-ghost {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.checkout-nav .btn-primary {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: #fff;
+    color: #000;
+    box-shadow: none;
+}
+
+.checkout-nav .btn-primary:hover {
+    background: #e0e0e0;
+    box-shadow: none;
+}
+
+/* Review Items */
+.checkout-items {
+    margin-bottom: 1.5rem;
+}
+
+.checkout-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.checkout-item-info h4 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+    color: #fff;
+}
+
+.checkout-item-info span {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.checkout-item-price {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.checkout-address-preview {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.checkout-address-preview h4 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.checkout-address-preview p {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.8;
+}
+
+/* Wise Cards */
+.wise-simple-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(157, 224, 76, 0.15);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.wise-simple-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.wise-badge {
+    background: #9cdf1c;
+    border-radius: 8px;
+    padding: 5px 14px;
+}
+
+.wise-brand {
+    font-weight: 800;
+    color: #1a1a2e;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+.wise-brand-sm {
+    font-weight: 800;
+    font-size: 12px;
+    color: #9cdf1c;
+    font-family: 'Poppins', sans-serif;
+}
+
+.wise-simple-desc {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.7;
+    margin-bottom: 1.25rem;
+}
+
+.wise-simple-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.wise-simple-total strong {
+    color: #9cdf1c;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.5rem;
+}
+
+/* Wise Button */
+.btn-wise {
+    background: #9cdf1c;
+    color: #1a1a2e;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-wise:hover {
+    background: #8cc819;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(156, 223, 28, 0.3);
+    color: #1a1a2e;
+}
+
+/* Ghost Button */
+.btn-ghost {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-ghost:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Confirmation */
+.confirmation-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.confirmation-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(156, 223, 28, 0.12);
+    border: 2px solid rgba(156, 223, 28, 0.3);
+    border-radius: 50%;
+    color: #9cdf1c;
+}
+
+.confirmation-header h2 {
+    color: #9cdf1c;
+    margin-bottom: 0.5rem;
+}
+
+.confirmation-header p {
+    font-family: 'Poppins', sans-serif;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.8rem;
+}
+
+/* Wise Payment Card */
+.wise-payment-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(157, 224, 76, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.wise-payment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.wise-payment-amount {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #9cdf1c;
+}
+
+.wise-payment-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.wise-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.wise-detail-row:hover {
+    background: rgba(156, 223, 28, 0.06);
+}
+
+.wise-detail-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.wise-detail-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: #fff;
+}
+
+.wise-detail-value svg {
+    color: rgba(255, 255, 255, 0.2);
+    opacity: 0.5;
+}
+
+.wise-detail-row:hover .wise-detail-value svg {
+    color: #9cdf1c;
+    opacity: 1;
+}
+
+.wise-ref {
+    color: #9cdf1c;
+    font-family: monospace;
+    letter-spacing: 0.04em;
+}
+
+.wise-accepted {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.25);
+}
+
+/* WhatsApp Shipping Card */
+.shipping-whatsapp-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.shipping-whatsapp-card h3 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.shipping-whatsapp-card p {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+/* WhatsApp Button */
+.btn-whatsapp {
+    background: #25D366;
+    color: white;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-whatsapp:hover {
+    background: #1fb855;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.3);
+    color: white;
+}
+
+.confirmation-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.confirmation-actions .btn {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Sidebar */
+.checkout-summary-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: sticky;
+    top: 100px;
+}
+
+.checkout-summary-card h3 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1rem;
+    color: #fff;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.summary-total {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    font-weight: 700;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.1rem;
+    color: #fff;
+}
+
+.free-shipping-note {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.35);
+    margin-top: 0.75rem;
+    text-align: center;
+}
+
+.wise-mini-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: rgba(156, 223, 28, 0.06);
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .checkout-page {
+        padding-top: 80px;
+        padding-bottom: 3rem;
+    }
+
+    .checkout-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .checkout-section {
+        padding: 1.25rem;
+    }
+
+    .checkout-steps {
+        gap: 0.25rem;
+    }
+
+    .checkout-step {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.65rem;
+    }
+
+    .checkout-step span {
+        display: none;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .checkout-nav {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    .checkout-nav .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .wise-payment-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+
+    .wise-payment-amount {
+        font-size: 1.3rem;
+    }
+
+    .wise-detail-row {
+        padding: 0.6rem 0.75rem;
+    }
+
+    .wise-detail-value {
+        font-size: 0.75rem;
+    }
+
+    .wise-accepted {
+        flex-wrap: wrap;
+        font-size: 0.6rem;
+    }
+
+    .wise-simple-card {
+        padding: 1rem;
+    }
+
+    .checkout-summary-card {
+        position: static;
+    }
+
+    .confirmation-actions {
+        flex-direction: column;
+    }
+
+    .confirmation-actions .btn {
+        width: 100%;
+    }
+
+    .shipping-whatsapp-card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkout-page {
+        padding-top: 70px;
+    }
+
+    .checkout-section {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .checkout-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+
+    .checkout-form input {
+        padding: 0.65rem 0.85rem;
+        font-size: 0.8rem;
+    }
+
+    .wise-simple-total strong {
+        font-size: 1.2rem;
+    }
+
+    .wise-payment-card {
+        padding: 1rem;
+    }
+
+    .confirmation-icon {
+        font-size: 36px;
+    }
+
+    .summary-row {
+        font-size: 0.75rem;
+    }
+
+    .summary-total {
+        font-size: 1rem;
+    }
+}

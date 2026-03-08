@@ -1,0 +1,1175 @@
+/* ===== 42PLUG CLONE WITH EVISU IMAGES ===== */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* ===== HERO ===== */
+.plug-hero {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
+}
+
+.plug-hero-bg {
+    position: absolute;
+    inset: 0;
+    will-change: transform;
+}
+
+.plug-hero-bg-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.plug-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.plug-hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 0 2rem;
+}
+
+.plug-hero-logo {
+    height: 130px;
+    width: 130px;
+    margin: 0 auto 1.5rem;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: transparent;
+    mix-blend-mode: screen;
+    filter: brightness(1.5) contrast(1.15);
+    border-radius: 16px;
+}
+
+.plug-hero-tagline {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: clamp(0.9rem, 2vw, 1.2rem);
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.plug-hero-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(3.5rem, 10vw, 8rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    line-height: 0.95;
+    margin-bottom: 1rem;
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.plug-accent {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+.plug-hero-sub {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+}
+
+.plug-hero-btn {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    padding: 14px 40px;
+    text-decoration: none;
+    transition: all 0.35s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.plug-hero-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    transition: left 0.35s ease;
+    z-index: -1;
+}
+
+.plug-hero-btn:hover {
+    color: #000;
+    border-color: #fff;
+}
+
+.plug-hero-btn:hover::before {
+    left: 0;
+}
+
+.plug-scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.4);
+    z-index: 2;
+}
+
+/* ===== CONTENT SECTIONS WRAPPER (Slides over hero) ===== */
+.plug-content-sections {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+}
+
+/* First section inside content gets rounded top corners */
+.plug-content-sections>section:first-child {
+    border-radius: 40px 40px 0 0;
+    overflow: hidden;
+}
+
+/* ===== SCROLL PROMPT ===== */
+.plug-scroll-section {
+    background: #f5f5f0;
+    padding: 4rem 0 3rem;
+    text-align: center;
+}
+
+.plug-scroll-label {
+    font-family: 'Poppins', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+    font-size: 0.65rem;
+    color: #999;
+    margin-bottom: 0.5rem;
+}
+
+.plug-scroll-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #000;
+}
+
+/* ===== CATEGORY BANNERS (Mosaic with Images) ===== */
+.plug-categories {
+    background: #f5f5f0;
+    padding: 0 1.5rem 3rem;
+}
+
+.plug-cat-hero {
+    margin-bottom: 1rem;
+}
+
+.plug-cat-card {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    text-decoration: none;
+    color: #fff;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+    cursor: pointer;
+}
+
+.plug-cat-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.plug-cat-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    transition: transform 0.6s ease;
+}
+
+.plug-cat-card:hover .plug-cat-img {
+    transform: scale(1.08);
+}
+
+.plug-cat-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.1) 60%, rgba(0, 0, 0, 0.05) 100%);
+}
+
+.plug-cat-text {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2.5rem;
+    z-index: 2;
+}
+
+.plug-cat-full {
+    height: 450px;
+}
+
+.plug-cat-full .plug-cat-img {
+    height: 100%;
+}
+
+.plug-cat-sublabel {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.plug-cat-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+}
+
+.plug-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.plug-cat-grid .plug-cat-card {
+    height: 320px;
+}
+
+.plug-cat-grid .plug-cat-img {
+    height: 100%;
+}
+
+/* ===== GENERAL SECTION HEADINGS ===== */
+.plug-section-heading {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #000;
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.plug-heading-light {
+    color: #fff;
+}
+
+.plug-section-sub {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: rgba(255, 255, 255, 0.35);
+    text-align: center;
+    margin-top: -1.5rem;
+    margin-bottom: 3rem;
+}
+
+/* ===== IMAGE CATEGORY CARDS ===== */
+.plug-icon-categories {
+    background: #0a0a0f;
+    padding: 5rem 0;
+}
+
+.plug-icon-categories .plug-section-heading {
+    color: #fff;
+}
+
+.plug-img-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.plug-img-cat-card {
+    position: relative;
+    display: block;
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: #fff;
+    aspect-ratio: 3 / 4;
+    cursor: pointer;
+}
+
+.plug-img-cat-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.6s ease;
+}
+
+.plug-img-cat-card:hover .plug-img-cat-photo {
+    transform: scale(1.1);
+}
+
+.plug-img-cat-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.05) 100%);
+    transition: background 0.3s ease;
+}
+
+.plug-img-cat-card:hover .plug-img-cat-overlay {
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 50%, rgba(0, 0, 0, 0.1) 100%);
+}
+
+.plug-img-cat-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 2;
+}
+
+.plug-img-cat-name {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.plug-img-cat-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.plug-img-cat-card:hover .plug-img-cat-arrow {
+    background: #fff;
+    color: #000;
+    transform: translateX(4px);
+}
+
+/* ===== ABOUT SECTION (with image) ===== */
+.plug-about {
+    background: #f5f5f0;
+    padding: 5rem 0;
+}
+
+.plug-about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+.plug-about-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: #999;
+    margin-bottom: 1rem;
+}
+
+.plug-about-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #000;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+}
+
+.plug-about-desc {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+.plug-about-btn {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: #000;
+    border: 2px solid #000;
+    padding: 12px 28px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.plug-about-btn:hover {
+    background: #000;
+    color: #fff;
+}
+
+.plug-about-image {
+    overflow: hidden;
+    border-radius: 16px;
+}
+
+.plug-about-img {
+    width: 100%;
+    height: 450px;
+    object-fit: cover;
+    border-radius: 16px;
+    transition: transform 0.6s ease;
+}
+
+.plug-about-img:hover {
+    transform: scale(1.05);
+}
+
+/* ===== FULL-WIDTH EVISU BANNER ===== */
+.plug-evisu-banner {
+    position: relative;
+    height: 500px;
+    overflow: hidden;
+}
+
+.plug-evisu-banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.plug-evisu-banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.plug-evisu-banner-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    z-index: 2;
+}
+
+.plug-evisu-banner-sub {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 1rem;
+}
+
+.plug-evisu-banner-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    line-height: 1.05;
+    margin-bottom: 2rem;
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== FEATURED PRODUCTS ===== */
+.plug-featured {
+    background: #000;
+    padding: 5rem 0;
+}
+
+.plug-cta-center {
+    text-align: center;
+    margin-top: 3rem;
+}
+
+.plug-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+    font-size: 0.85rem;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 14px 36px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.plug-ghost-btn:hover {
+    border-color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* ===== COMMUNITY / INSTAGRAM ===== */
+.plug-community {
+    background: #f5f5f0;
+    padding: 5rem 0;
+    text-align: center;
+}
+
+.plug-community-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: #999;
+    margin-bottom: 1rem;
+}
+
+.plug-community-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #000;
+    line-height: 1.15;
+    margin-bottom: 2.5rem;
+}
+
+.plug-insta-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.plug-insta-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    aspect-ratio: 1;
+    cursor: pointer;
+}
+
+.plug-insta-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.plug-insta-item:hover img {
+    transform: scale(1.1);
+}
+
+.plug-insta-hover {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.plug-insta-item:hover .plug-insta-hover {
+    opacity: 1;
+}
+
+.plug-insta-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #000;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: opacity 0.3s ease;
+}
+
+.plug-insta-link:hover {
+    opacity: 0.6;
+}
+
+/* ===== TESTIMONIALS ===== */
+.plug-testimonials {
+    background: #000;
+    padding: 5rem 0;
+}
+
+.plug-stars-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-bottom: 3rem;
+}
+
+.plug-star-filled {
+    color: #f5c518;
+    fill: #f5c518;
+}
+
+.plug-rating-text {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: 0.5rem;
+}
+
+.plug-testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.plug-testimonial-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+}
+
+.plug-testimonial-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.plug-testimonial-stars {
+    display: flex;
+    gap: 0.2rem;
+    margin-bottom: 1rem;
+    color: #f5c518;
+}
+
+.plug-testimonial-stars svg {
+    fill: #f5c518;
+}
+
+.plug-testimonial-text {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.7;
+    margin-bottom: 1.2rem;
+}
+
+.plug-testimonial-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* ===== FAQ ===== */
+.plug-faq {
+    background: #f5f5f0;
+    padding: 5rem 0;
+}
+
+.plug-faq-list {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.plug-faq-item {
+    border-bottom: 1px solid #ddd;
+    overflow: hidden;
+}
+
+.plug-faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 1.5rem 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #000;
+    text-align: left;
+}
+
+.plug-faq-chevron {
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.plug-faq-chevron.rotated {
+    transform: rotate(180deg);
+}
+
+.plug-faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.4s ease;
+}
+
+.plug-faq-item.open .plug-faq-answer {
+    max-height: 200px;
+    padding-bottom: 1.5rem;
+}
+
+.plug-faq-answer p {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.7;
+}
+
+/* ===== TRUST BADGES ===== */
+.plug-trust {
+    background: #000;
+    padding: 4rem 0;
+}
+
+.plug-trust-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+}
+
+.plug-trust-card {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+}
+
+.plug-trust-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-4px);
+}
+
+.plug-trust-icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.plug-trust-card h3 {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+    color: #fff;
+}
+
+.plug-trust-card p {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.6;
+}
+
+/* ===== NEWSLETTER ===== */
+.plug-newsletter {
+    background: #f5f5f0;
+    padding: 4rem 0;
+}
+
+.plug-newsletter-card {
+    text-align: center;
+    padding: 4rem 2.5rem;
+    background: #000;
+    border-radius: 16px;
+}
+
+.plug-newsletter-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.plug-newsletter-desc {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+}
+
+.plug-newsletter-form {
+    display: flex;
+    gap: 0;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.plug-newsletter-form input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 14px 20px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.8rem;
+    border-radius: 0;
+    outline: none;
+}
+
+.plug-newsletter-form input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.7rem;
+}
+
+.plug-newsletter-form input:focus {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.plug-newsletter-form button {
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: #fff;
+    color: #000;
+    border: none;
+    padding: 14px 28px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: background 0.3s ease;
+}
+
+.plug-newsletter-form button:hover {
+    background: #e0e0e0;
+}
+
+/* ===== BOTTOM BAR ===== */
+.plug-bottom-bar {
+    background: #000;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 1.5rem 2rem;
+    text-align: center;
+}
+
+.plug-bottom-bar span {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .plug-cat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .plug-img-cat-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .plug-testimonial-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .plug-trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .plug-about-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .plug-insta-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .plug-hero {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        min-height: 90vh;
+    }
+
+    .plug-content-sections>section:first-child {
+        border-radius: 30px 30px 0 0;
+    }
+
+    .plug-hero-logo {
+        height: 70px;
+        width: 70px;
+    }
+
+    .plug-hero-content {
+        padding: 0 1.25rem;
+    }
+
+    .plug-hero-btn {
+        padding: 12px 32px;
+        font-size: 0.8rem;
+    }
+
+    .plug-scroll-section {
+        padding: 3rem 0 2rem;
+    }
+
+    .plug-cat-full {
+        height: 300px;
+    }
+
+    .plug-cat-text {
+        padding: 1.5rem;
+    }
+
+    .plug-cat-grid .plug-cat-card {
+        height: 220px;
+    }
+
+    .plug-cat-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .plug-img-cat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .plug-img-cat-content {
+        padding: 1rem;
+    }
+
+    .plug-icon-categories {
+        padding: 3.5rem 0;
+    }
+
+    .plug-section-heading {
+        margin-bottom: 2rem;
+    }
+
+    .plug-section-sub {
+        margin-bottom: 2rem;
+    }
+
+    .plug-testimonial-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .plug-about {
+        padding: 3.5rem 0;
+    }
+
+    .plug-about-img {
+        height: 300px;
+    }
+
+    .plug-evisu-banner {
+        height: 350px;
+    }
+
+    .plug-insta-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .plug-newsletter {
+        padding: 3.5rem 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .plug-hero {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        min-height: 85vh;
+    }
+
+    .plug-content-sections>section:first-child {
+        border-radius: 24px 24px 0 0;
+    }
+
+    .plug-hero-logo {
+        height: 55px;
+        width: 55px;
+    }
+
+    .plug-hero-title {
+        font-size: 2.8rem;
+    }
+
+    .plug-hero-tagline {
+        font-size: 0.8rem;
+    }
+
+    .plug-hero-sub {
+        font-size: 0.6rem;
+        letter-spacing: 0.25em;
+        margin-bottom: 2rem;
+    }
+
+    .plug-hero-btn {
+        padding: 10px 28px;
+        font-size: 0.75rem;
+    }
+
+    .plug-scroll-title {
+        font-size: 2rem;
+    }
+
+    .plug-categories {
+        padding: 0 0.75rem 2rem;
+    }
+
+    .plug-cat-full {
+        height: 240px;
+    }
+
+    .plug-cat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .plug-cat-grid .plug-cat-card {
+        height: 200px;
+    }
+
+    .plug-cat-text {
+        padding: 1rem;
+    }
+
+    .plug-img-cat-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .plug-img-cat-content {
+        padding: 0.75rem;
+    }
+
+    .plug-img-cat-name {
+        font-size: 0.7rem;
+    }
+
+    .plug-img-cat-arrow {
+        width: 28px;
+        height: 28px;
+    }
+
+    .plug-icon-categories {
+        padding: 2.5rem 0;
+    }
+
+    .plug-about {
+        padding: 2.5rem 0;
+    }
+
+    .plug-about-img {
+        height: 250px;
+    }
+
+    .plug-about-desc {
+        font-size: 0.8rem;
+    }
+
+    .plug-trust-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .plug-newsletter-form {
+        flex-direction: column;
+    }
+
+    .plug-newsletter-form input,
+    .plug-newsletter-form button {
+        width: 100%;
+    }
+
+    .plug-insta-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .plug-evisu-banner {
+        height: 250px;
+    }
+
+    .plug-evisu-banner-title {
+        font-size: 1.8rem;
+    }
+
+    .plug-newsletter {
+        padding: 2.5rem 0;
+    }
+
+    .plug-newsletter-title {
+        font-size: 1.8rem;
+    }
+}
