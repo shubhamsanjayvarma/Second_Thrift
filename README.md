@@ -1,5 +1,7 @@
 # React + Vite
 
+Second Thrift E - Commerce Website For Client (Paid Work)
+<br>
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
