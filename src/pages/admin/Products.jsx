@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiTag, FiStar } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
-import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, isYouTubeUrl } from '../../utils/helpers';
+import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, isYouTubeUrl, isVideoUrl } from '../../utils/helpers';
 import { defaultCategories } from '../../services/categories';
 import { subscribeToAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/products';
 import { uploadProductMedia } from '../../services/storage';
@@ -423,19 +423,21 @@ const AdminProducts = () => {
                                     {/* Preview Grid */}
                                     {(form.images?.length > 0 || mediaFiles.length > 0) && (
                                         <div className="ap-media-grid">
-                                            {form.images?.map((url, i) => (
-                                                <div key={`existing-${i}`} className="ap-media-item">
-                                                    {url.match(/\.(mp4|webm|mov)(\?.*)?$/i) || url.includes('video') ? (
-                                                        <video src={url} muted className="ap-media-preview" />
-                                                    ) : isYouTubeUrl(url) ? (
-                                                        <SmartMedia src={url} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                    ) : (
-                                                        <SmartMedia src={url} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} />
-                                                    )}
-                                                    <button className="ap-media-remove" onClick={() => removeMedia(i)}><FiX size={12} /></button>
-                                                    {i === 0 && <span className="ap-media-badge">Cover</span>}
-                                                </div>
-                                            ))}
+                                            {form.images?.map((url, i) => {
+                                                const isVideo = isVideoUrl(url) || isYouTubeUrl(url);
+                                                return (
+                                                    <div key={`existing-${i}`} className="ap-media-item" style={{ position: 'relative' }}>
+                                                        <SmartMedia src={url} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} isThumbnail={true} />
+                                                        {isVideo && (
+                                                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: '#fff', fontSize: '24px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                                                ▶
+                                                            </div>
+                                                        )}
+                                                        <button className="ap-media-remove" onClick={() => removeMedia(i)}><FiX size={12} /></button>
+                                                        {i === 0 && <span className="ap-media-badge">Cover</span>}
+                                                    </div>
+                                                );
+                                            })}
                                             {mediaFiles.map((file, i) => (
                                                 <div key={`new-${i}`} className="ap-media-item ap-media-new">
                                                     {file.type.startsWith('video/') ? (

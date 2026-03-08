@@ -9,7 +9,7 @@ import { useToast } from '../components/common/Toast';
 import { formatPrice, SIZES, COLORS } from '../utils/helpers';
 import { getProductById } from '../services/products';
 import SmartMedia from '../components/common/SmartMedia';
-import { isVideoUrl } from '../utils/helpers';
+import { isVideoUrl, isYouTubeUrl } from '../utils/helpers';
 import './ProductDetail.css';
 
 const ProductDetail = () => {
@@ -171,6 +171,17 @@ const ProductDetail = () => {
                                             exit={{ opacity: 0, x: slideDirection > 0 ? -100 : 100 }}
                                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                             className="product-main-image-slide"
+                                            drag="x"
+                                            dragConstraints={{ left: 0, right: 0 }}
+                                            dragElastic={0.2}
+                                            onDragEnd={(e, { offset }) => {
+                                                const swipe = offset.x;
+                                                if (swipe < -50) {
+                                                    handleNextImage();
+                                                } else if (swipe > 50) {
+                                                    handlePrevImage();
+                                                }
+                                            }}
                                         >
                                             <SmartMedia
                                                 key={selectedImage}
@@ -207,15 +218,24 @@ const ProductDetail = () => {
                         </div>
                         {product.images?.length > 1 && (
                             <div className="product-thumbnails">
-                                {product.images.map((img, idx) => (
-                                    <button
-                                        key={idx}
-                                        className={`product-thumb ${selectedImage === idx ? 'active' : ''}`}
-                                        onClick={() => handleThumbnailClick(idx)}
-                                    >
-                                        <SmartMedia src={img} alt={`${product.name} - ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} />
-                                    </button>
-                                ))}
+                                {product.images.map((img, idx) => {
+                                    const isVideo = isVideoUrl(img);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            className={`product-thumb ${selectedImage === idx ? 'active' : ''}`}
+                                            onClick={() => handleThumbnailClick(idx)}
+                                            style={{ position: 'relative' }}
+                                        >
+                                            <SmartMedia src={img} alt={`${product.name} - ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} isThumbnail={true} />
+                                            {isVideo && (
+                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', pointerEvents: 'none' }}>
+                                                    <span style={{ fontSize: '20px', color: '#fff' }}>▶</span>
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

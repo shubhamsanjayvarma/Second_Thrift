@@ -6,7 +6,7 @@ import { isVideoUrl, isYouTubeUrl, getYouTubeId } from '../../utils/helpers';
  * For internal API URLs without extensions, probes the Content-Type via HEAD request.
  * Falls back gracefully if the initial guess is wrong.
  */
-const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {} }) => {
+const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}, isThumbnail = false }) => {
     const [mediaType, setMediaType] = useState(null); // 'image' | 'video' | null
     const [failed, setFailed] = useState(false);
     const probed = useRef(false);
@@ -66,9 +66,9 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
                 <video
                     src={src}
                     className={className}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: isThumbnail ? 'none' : 'auto', ...style }}
                     muted
-                    autoPlay
+                    autoPlay={!isThumbnail}
                     loop
                     playsInline
                     {...videoProps}
@@ -91,9 +91,9 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
             <video
                 src={src}
                 className={className}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', ...style }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: isThumbnail ? 'none' : 'auto', ...style }}
                 muted
-                autoPlay
+                autoPlay={!isThumbnail}
                 loop
                 playsInline
                 onError={() => setFailed(true)}
@@ -107,12 +107,23 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
         if (!youtubeId) {
             return null; // Invalid YouTube link
         }
+        if (isThumbnail) {
+            return (
+                <img
+                    src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+                    alt={alt}
+                    className={className}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', ...style }}
+                    loading="lazy"
+                />
+            );
+        }
         return (
             <iframe
                 src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
                 title="YouTube video player"
                 className={className}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', border: 'none', ...style }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', border: 'none', pointerEvents: isThumbnail ? 'none' : 'auto', ...style }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
             />
