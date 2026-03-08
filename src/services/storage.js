@@ -1,11 +1,22 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+// Media upload/delete via MongoDB backend (Serverless API)
 
 export const uploadProductMedia = async (file) => {
-    const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-    const storageRef = ref(storage, `products/${filename}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Directly accessing the internal Vercel API
+    const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Upload failed');
+    }
+
+    const data = await res.json();
+    return data.url; // returns "/api/media/<id>"
 };
 
 export const uploadProductImage = async (file) => {
@@ -22,10 +33,10 @@ export const uploadBannerImage = async (file) => {
 
 export const deleteImage = async (url) => {
     try {
-        if (!url || !url.includes('firebasestorage.googleapis.com')) return;
-        const decodedUrl = decodeURIComponent(url.split('/o/')[1].split('?')[0]);
-        const storageRef = ref(storage, decodedUrl);
-        await deleteObject(storageRef);
+        if (!url || !url.startsWith('/api/media')) return;
+        // url is like "/api/media/6649abc123..."
+        const res = await fetch(url, { method: 'DELETE' });
+        if (!res.ok) console.error('Failed to delete media');
     } catch (e) {
         console.error('Failed to delete image:', e);
     }
