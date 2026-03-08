@@ -103,7 +103,7 @@ ${orderItemsList}
 
 ━━━━━━━━━━━━━━━━━━
 
-💰 *TOTAL*
+💰 *TOTAL TO BE PAID*
 *€${totalAmt}*
 _(All inclusive — no extra charges)_
 
@@ -119,11 +119,11 @@ ${address.country}
 
 ━━━━━━━━━━━━━━━━━━
 
-💳 *Payment:* Bank Transfer
-✅ *Status:* Order Placed
+💳 *Payment:* Bank Transfer (Wise)
+⚠️ *Status:* PENDING PAYMENT VERIFICATION
 
 ━━━━━━━━━━━━━━━━━━
-_Thank you for shopping with Second Thrift!_`;
+_I have completed the bank transfer. Please verify the payment and process my order._`;
 
         window.open(`https://wa.me/919909527515?text=${encodeURIComponent(msg)}`, '_blank');
     };
@@ -301,13 +301,13 @@ _Thank you for shopping with Second Thrift!_`;
                             </motion.div>
                         )}
 
-                        {/* ========== STEP 4: ORDER CONFIRMED ========== */}
+                        {/* ========== STEP 4: PAYMENT REQUIRED ========== */}
                         {step === 4 && paymentInfo && (
                             <motion.div className="checkout-section" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                                <div className="confirmation-header">
-                                    <div className="confirmation-icon"><FiCheck size={32} /></div>
-                                    <h2>Order Placed Successfully!</h2>
-                                    <p>Complete your payment using the details below</p>
+                                <div className="confirmation-header" style={{ color: 'var(--warning, #eab308)' }}>
+                                    <div className="confirmation-icon" style={{ background: 'var(--warning, #eab308)' }}><FiCreditCard size={32} color="#000" /></div>
+                                    <h2 style={{ color: 'var(--warning, #eab308)' }}>Action Required: Complete Your Payment</h2>
+                                    <p>Your order is pending. Please transfer the exact amount below to confirm.</p>
                                 </div>
 
                                 {/* Wise Payment Details */}
@@ -318,7 +318,8 @@ _Thank you for shopping with Second Thrift!_`;
                                     </div>
 
                                     <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', margin: '0 0 16px', lineHeight: 1.5 }}>
-                                        Send payment using Wise or bank transfer. You can pay with <strong>card, bank transfer, or Wise balance</strong>.
+                                        Send your payment using the details below. Ensure you transfer exactly <strong>€{paymentInfo.amount.toFixed(2)}</strong>. <br />
+                                        <span style={{ color: 'var(--error)' }}>If the amount does not match exactly, your order will be cancelled.</span>
                                     </p>
 
                                     <div className="wise-payment-details">
@@ -336,22 +337,15 @@ _Thank you for shopping with Second Thrift!_`;
                                                 <FiCopy size={14} />
                                             </div>
                                         </div>
-                                        <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.bic, 'BIC / SWIFT')}>
-                                            <div className="wise-detail-label">BIC / SWIFT</div>
-                                            <div className="wise-detail-value">
-                                                <strong>{paymentInfo.bic}</strong>
-                                                <FiCopy size={14} />
-                                            </div>
-                                        </div>
                                         <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.amount.toFixed(2), 'Amount')}>
-                                            <div className="wise-detail-label">Amount (EUR)</div>
+                                            <div className="wise-detail-label">Exact Amount (EUR)</div>
                                             <div className="wise-detail-value">
                                                 <strong>€{paymentInfo.amount.toFixed(2)}</strong>
                                                 <FiCopy size={14} />
                                             </div>
                                         </div>
                                         <div className="wise-detail-row" onClick={() => copyToClipboard(paymentInfo.reference, 'Reference')}>
-                                            <div className="wise-detail-label">Reference <span style={{ color: 'var(--error)', fontSize: '11px' }}>(Required)</span></div>
+                                            <div className="wise-detail-label">Transfer Reference <span style={{ color: 'var(--error)', fontSize: '11px' }}>(Required)</span></div>
                                             <div className="wise-detail-value">
                                                 <strong className="wise-ref">{paymentInfo.reference}</strong>
                                                 <FiCopy size={14} />
@@ -359,29 +353,22 @@ _Thank you for shopping with Second Thrift!_`;
                                         </div>
                                     </div>
 
-                                    <a href="https://wise.com/pay/business/ketanbhaisureshbhaigorasava" target="_blank" rel="noopener noreferrer" className="btn btn-wise btn-lg w-full">
-                                        <FiExternalLink /> Open Wise & Pay
+                                    <a href={`https://wise.com/pay/business/ketanbhaisureshbhaigorasava?amount=${paymentInfo.amount.toFixed(2)}&currency=EUR`} target="_blank" rel="noopener noreferrer" className="btn btn-wise btn-lg w-full">
+                                        <FiExternalLink /> Pay Exactly €{paymentInfo.amount.toFixed(2)} via Wise
                                     </a>
 
                                     <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px 16px', marginTop: '12px', fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
                                         <strong style={{ color: 'var(--text-primary)' }}>Bank:</strong> {paymentInfo.bankName}<br />
                                         <span style={{ fontSize: '12px' }}>{paymentInfo.bankAddress}</span>
                                     </div>
-
-                                    <div className="wise-accepted">
-                                        <span>Accepted:</span>
-                                        <span>Bank Transfer</span>
-                                        <span>Credit Card</span>
-                                        <span>Debit Card</span>
-                                    </div>
                                 </div>
 
-                                {/* Send Shipping Details */}
-                                <div className="shipping-whatsapp-card">
-                                    <h3>Send Shipping Details to Admin</h3>
-                                    <p>Send your order & shipping info to our team so we can ship your order.</p>
+                                {/* Send Shipping Details (MANDATORY) */}
+                                <div className="shipping-whatsapp-card" style={{ border: '2px solid var(--primary)', background: 'rgba(56, 189, 248, 0.05)' }}>
+                                    <h3>Final Step: Verify Payment</h3>
+                                    <p style={{ color: 'var(--text-primary)' }}>Your order will not be shipped until you send your payment screenshot and address to the Admin via WhatsApp.</p>
                                     <button className="btn btn-whatsapp btn-lg w-full" onClick={sendShippingToWhatsApp}>
-                                        <FaWhatsapp size={18} /> Send via WhatsApp
+                                        <FaWhatsapp size={18} /> I Have Paid — Send Details Now
                                     </button>
                                 </div>
 
