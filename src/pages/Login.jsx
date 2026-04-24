@@ -5,7 +5,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight } from 'react-icons/fi';
 import { signIn, signInWithGoogle } from '../services/auth';
 import { useToast } from '../components/common/Toast';
 import logo from '../assets/logo-text.png';
-import evisuDesigner from '../assets/evisu-designer.png';
+import loginBg from '../assets/vintage-streetwear.jpeg';
 import './Auth.css';
 
 const Login = () => {
@@ -43,7 +43,7 @@ const Login = () => {
 
     return (
         <div className="auth-page">
-            <img src={evisuDesigner} alt="" className="auth-bg-img" />
+            <img src={loginBg} alt="" className="auth-bg-img" />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"

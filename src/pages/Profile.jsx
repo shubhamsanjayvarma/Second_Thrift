@@ -5,7 +5,7 @@ import { FiUser, FiMail, FiLogOut, FiShield } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { signOutUser } from '../services/auth';
 import { useToast } from '../components/common/Toast';
-import evisuOuterwear from '../assets/evisu-outerwear.png';
+import profileBg from '../assets/gstar-bulk-display.jpeg';
 import './Profile.css';
 
 const Profile = () => {
@@ -30,7 +30,7 @@ const Profile = () => {
 
     return (
         <div className="profile-page">
-            <img src={evisuOuterwear} alt="" className="profile-bg-img" />
+            <img src={profileBg} alt="" className="profile-bg-img" />
             <div className="profile-bg-overlay" />
             <div className="container">
                 <motion.div

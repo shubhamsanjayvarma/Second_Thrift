@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FiMail, FiMapPin, FiSend } from 'react-icons/fi';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { useToast } from '../components/common/Toast';
-import evisuOuterwear from '../assets/evisu-outerwear.png';
+import contactBg from '../assets/evisu-boxed-shipment.jpeg';
 import './About.css';
 
 const Contact = () => {
@@ -31,7 +31,7 @@ const Contact = () => {
         <div className="contact-page-wrap">
             {/* Hero with full Evisu image */}
             <section className="contact-hero">
-                <img src={evisuOuterwear} alt="" className="contact-hero-bg-img" />
+                <img src={contactBg} alt="" className="contact-hero-bg-img" />
                 <div className="contact-hero-overlay" />
                 <div className="contact-hero-content container">
                     <motion.div

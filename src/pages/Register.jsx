@@ -5,7 +5,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiArrowRight } from 'react-ico
 import { signUp, signInWithGoogle } from '../services/auth';
 import { useToast } from '../components/common/Toast';
 import logo from '../assets/logo-text.png';
-import evisuCollection from '../assets/evisu-collection.png';
+import registerBg from '../assets/bulk-inventory.jpeg';
 import './Auth.css';
 
 const Register = () => {
@@ -47,7 +47,7 @@ const Register = () => {
 
     return (
         <div className="auth-page">
-            <img src={evisuCollection} alt="" className="auth-bg-img" />
+            <img src={registerBg} alt="" className="auth-bg-img" />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"

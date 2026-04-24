@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiMail, FiArrowRight } from 'react-icons/fi';
 import logo from '../assets/logo-text.png';
-import evisuHero from '../assets/evisu-hero.png';
+import verifyBg from '../assets/japanese-art-jeans-2.jpeg';
 import './Auth.css';
 
 const VerifyEmail = () => {
@@ -11,7 +11,7 @@ const VerifyEmail = () => {
 
     return (
         <div className="auth-page">
-            <img src={evisuHero} alt="" className="auth-bg-img" />
+            <img src={verifyBg} alt="" className="auth-bg-img" />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"

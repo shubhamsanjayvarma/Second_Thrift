@@ -5,19 +5,36 @@ import { FiArrowRight, FiTruck, FiShield, FiRefreshCw, FiPackage, FiChevronDown,
 import ProductCard from '../components/product/ProductCard';
 import { defaultCategories } from '../services/categories';
 import { subscribeToFeaturedProducts } from '../services/products';
-import evisuHero from '../assets/evisu-hero.png';
-import evisuLatest from '../assets/evisu-latest.png';
-import evisuDesigner from '../assets/evisu-designer.png';
-import evisuOuterwear from '../assets/evisu-outerwear.png';
-import evisuCollection from '../assets/evisu-collection.png';
-import evisuAbout from '../assets/evisu-about.png';
-import catTops from '../assets/cat-tops.png';
-import catBottoms from '../assets/cat-bottoms.png';
-import catOuterwear from '../assets/cat-outerwear.png';
-import catDresses from '../assets/cat-dresses.png';
-import catActivewear from '../assets/cat-activewear.png';
-import catAccessories from '../assets/cat-accessories.png';
-import catFootwear from '../assets/cat-footwear.png';
+
+// Hero & banner images — picked for BRIGHT contrast with text overlays
+import heroImg from '../assets/second-thrift-branded.jpeg';
+import latestDropImg from '../assets/evisu-colorful.jpeg';
+import premiumDenimImg from '../assets/true-religion-collection.jpeg';
+import outerwearImg from '../assets/bulk-inventory.jpeg';
+import collectionImg from '../assets/armani-dg-collection.jpeg';
+import aboutImg from '../assets/second-thrift-boxed.jpeg';
+
+// Category images — picked for variety and brightness
+import catTopsImg from '../assets/sweaters-pile.jpeg';
+import catBottomsImg from '../assets/true-religion-collection.jpeg';
+import catOuterwearImg from '../assets/bulk-inventory.jpeg';
+import catDressesImg from '../assets/japanese-denim.jpeg';
+import catActivewearImg from '../assets/gstar-display.jpeg';
+import catAccessoriesImg from '../assets/armani-dg-collection.jpeg';
+import catFootwearImg from '../assets/mixed-brands.jpeg';
+import catVintageImg from '../assets/japanese-art-jeans.jpeg';
+
+// Instagram grid images — diverse product shots
+import insta1 from '../assets/second-thrift-box-product.jpeg';
+import insta2 from '../assets/evisu-colorful.jpeg';
+import insta3 from '../assets/designer-pockets.jpeg';
+import insta4 from '../assets/second-thrift-branded.jpeg';
+import insta5 from '../assets/evisu-daruma-2.jpeg';
+import insta6 from '../assets/evisu-warehouse.jpeg';
+
+// Full-width banner — colorful warehouse shot
+import bannerImg from '../assets/evisu-full-collection.jpeg';
+
 import { useToast } from '../components/common/Toast';
 import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -76,21 +93,21 @@ const Home = () => {
     ];
 
     const categoryBanners = [
-        { slug: 'tops', label: 'LATEST DROP', sublabel: 'NEW ARRIVALS', img: evisuLatest },
-        { slug: 'bottoms', label: 'PREMIUM DENIM', sublabel: 'DESIGNER JEANS', img: evisuDesigner },
-        { slug: 'outerwear', label: 'EVERYDAY LAYERS', sublabel: 'OUTERWEAR', img: evisuOuterwear },
-        { slug: 'dresses', label: 'COLLECTION', sublabel: 'FULL COLLECTION', img: evisuCollection },
+        { slug: 'tops', label: 'LATEST DROP', sublabel: 'NEW ARRIVALS', img: latestDropImg },
+        { slug: 'bottoms', label: 'PREMIUM DENIM', sublabel: 'DESIGNER JEANS', img: premiumDenimImg },
+        { slug: 'outerwear', label: 'EVERYDAY LAYERS', sublabel: 'OUTERWEAR', img: outerwearImg },
+        { slug: 'dresses', label: 'COLLECTION', sublabel: 'FULL COLLECTION', img: collectionImg },
     ];
 
     const categoryImages = [
-        { slug: 'tops', name: 'TOPS', img: catTops },
-        { slug: 'bottoms', name: 'BOTTOMS', img: catBottoms },
-        { slug: 'outerwear', name: 'OUTERWEAR', img: catOuterwear },
-        { slug: 'dresses', name: 'DRESSES', img: catDresses },
-        { slug: 'activewear', name: 'ACTIVEWEAR', img: catActivewear },
-        { slug: 'accessories', name: 'ACCESSORIES', img: catAccessories },
-        { slug: 'footwear', name: 'FOOTWEAR', img: catFootwear },
-        { slug: 'vintage', name: 'VINTAGE', img: evisuCollection },
+        { slug: 'tops', name: 'TOPS', img: catTopsImg },
+        { slug: 'bottoms', name: 'BOTTOMS', img: catBottomsImg },
+        { slug: 'outerwear', name: 'OUTERWEAR', img: catOuterwearImg },
+        { slug: 'dresses', name: 'DRESSES', img: catDressesImg },
+        { slug: 'activewear', name: 'ACTIVEWEAR', img: catActivewearImg },
+        { slug: 'accessories', name: 'ACCESSORIES', img: catAccessoriesImg },
+        { slug: 'footwear', name: 'FOOTWEAR', img: catFootwearImg },
+        { slug: 'vintage', name: 'VINTAGE', img: catVintageImg },
     ];
 
     return (
@@ -98,7 +115,7 @@ const Home = () => {
             {/* ========== HERO SECTION (Sticky - stays behind content) ========== */}
             <section className="plug-hero">
                 <div className="plug-hero-bg">
-                    <img src={evisuHero} alt="" className="plug-hero-bg-img" />
+                    <img src={heroImg} alt="" className="plug-hero-bg-img" />
                     <div className="plug-hero-overlay" />
                 </div>
                 <div className="plug-hero-content">
@@ -258,7 +275,7 @@ const Home = () => {
                             viewport={{ once: true }}
                             transition={{ duration: 0.7 }}
                         >
-                            <img src={evisuAbout} alt="Behind Second Thrift" className="plug-about-img" />
+                            <img src={aboutImg} alt="Behind Second Thrift" className="plug-about-img" />
                         </motion.div>
                     </div>
                 </div>
@@ -266,7 +283,7 @@ const Home = () => {
 
             {/* ========== FULL-WIDTH EVISU BANNER ========== */}
             <section className="plug-evisu-banner">
-                <img src={evisuCollection} alt="Evisu Collection" className="plug-evisu-banner-img" />
+                <img src={bannerImg} alt="Premium Vintage Denim" className="plug-evisu-banner-img" />
                 <div className="plug-evisu-banner-overlay" />
                 <div className="plug-evisu-banner-content">
                     <motion.div
@@ -321,7 +338,7 @@ const Home = () => {
                     </motion.div>
                     {/* Instagram Image Row */}
                     <div className="plug-insta-grid">
-                        {[evisuHero, evisuLatest, evisuDesigner, evisuOuterwear, evisuAbout, evisuCollection].map((img, idx) => (
+                        {[insta1, insta2, insta3, insta4, insta5, insta6].map((img, idx) => (
                             <motion.a
                                 key={idx}
                                 href="https://instagram.com"

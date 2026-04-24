@@ -1,17 +1,22 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiArrowRight, FiCheckCircle, FiPackage, FiGlobe } from 'react-icons/fi';
-import evisuAbout from '../assets/evisu-about.png';
-import evisuHero from '../assets/evisu-hero.png';
-import evisuDesigner from '../assets/evisu-designer.png';
-import evisuCollection from '../assets/evisu-collection.png';
+
+// Real product photos from the Assets folder
+import aboutHeroImg from '../assets/evisu-mega-collection.jpeg';
+import storyImg from '../assets/second-thrift-branded.jpeg';
+import bannerImg from '../assets/evisu-boxed-inventory.jpeg';
+import qualityImg from '../assets/armani-dg-display.jpeg';
+import bulkImg from '../assets/second-thrift-boxed.jpeg';
+import shippingImg from '../assets/evisu-boxed-shipment.jpeg';
+
 import './About.css';
 
 const About = () => (
     <div className="about-page-wrap">
-        {/* Hero with full-bleed Evisu image */}
+        {/* Hero with full-bleed image */}
         <section className="about-hero">
-            <img src={evisuAbout} alt="" className="about-hero-bg-img" />
+            <img src={aboutHeroImg} alt="" className="about-hero-bg-img" />
             <div className="about-hero-overlay" />
             <div className="about-hero-content container">
                 <motion.div
@@ -53,7 +58,7 @@ const About = () => (
                         viewport={{ once: true }}
                         transition={{ duration: 0.7 }}
                     >
-                        <img src={evisuHero} alt="Second Thrift Story" />
+                        <img src={storyImg} alt="Second Thrift Story" />
                     </motion.div>
                 </div>
             </div>
@@ -61,7 +66,7 @@ const About = () => (
 
         {/* Full-width banner */}
         <section className="about-banner">
-            <img src={evisuCollection} alt="Collection" className="about-banner-img" />
+            <img src={bannerImg} alt="Collection" className="about-banner-img" />
             <div className="about-banner-overlay" />
             <div className="about-banner-content">
                 <motion.div
@@ -90,9 +95,9 @@ const About = () => (
                 </motion.div>
                 <div className="about-features-grid">
                     {[
-                        { icon: <FiCheckCircle size={24} />, title: 'QUALITY CHECKED', text: 'Every item inspected before shipping', img: evisuDesigner },
-                        { icon: <FiPackage size={24} />, title: 'BULK PRICING', text: 'Wholesale deals for smart buyers', img: evisuAbout },
-                        { icon: <FiGlobe size={24} />, title: 'EU SHIPPING', text: 'Fast delivery across Europe', img: evisuCollection },
+                        { icon: <FiCheckCircle size={24} />, title: 'QUALITY CHECKED', text: 'Every item inspected before shipping', img: qualityImg },
+                        { icon: <FiPackage size={24} />, title: 'BULK PRICING', text: 'Wholesale deals for smart buyers', img: bulkImg },
+                        { icon: <FiGlobe size={24} />, title: 'EU SHIPPING', text: 'Fast delivery across Europe', img: shippingImg },
                     ].map((feature, idx) => (
                         <motion.div
                             key={idx}

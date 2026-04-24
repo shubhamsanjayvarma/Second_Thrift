@@ -7,7 +7,7 @@ import { defaultCategories } from '../services/categories';
 import { PRODUCT_CONDITIONS, SIZES } from '../utils/helpers';
 import { subscribeToAllProducts } from '../services/products';
 import { useToast } from '../components/common/Toast';
-import evisuLatest from '../assets/evisu-latest.png';
+import shopHeroBg from '../assets/second-thrift-branded.jpeg';
 import './Shop.css';
 
 const Shop = () => {
@@ -90,7 +90,7 @@ const Shop = () => {
     return (
         <div className="shop-page">
             <div className="shop-header">
-                <img src={evisuLatest} alt="" className="shop-hero-bg-img" />
+                <img src={shopHeroBg} alt="" className="shop-hero-bg-img" />
                 <div className="shop-hero-overlay" />
                 <div className="container shop-header-content">
                     <h1>{activeCategoryName || 'Shop All'}</h1>

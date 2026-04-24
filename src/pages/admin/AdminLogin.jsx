@@ -5,7 +5,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiShield } from 'react-i
 import { signInAdmin, resetPassword } from '../../services/auth';
 import { useToast } from '../../components/common/Toast';
 import logo from '../../assets/logo-text.png';
-import evisuHero from '../../assets/evisu-hero.png';
+import adminBg from '../../assets/southpole-lineup.jpeg';
 import '../Auth.css';
 
 const AdminLogin = () => {
@@ -78,7 +78,7 @@ const AdminLogin = () => {
 
     return (
         <div className="auth-page">
-            <img src={evisuHero} alt="" className="auth-bg-img" />
+            <img src={adminBg} alt="" className="auth-bg-img" />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"
