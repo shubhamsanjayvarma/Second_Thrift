@@ -12,7 +12,7 @@ const Footer = () => {
             <div className="container">
                 <div className="footer-grid">
                     <div className="footer-brand">
-                        <img src={logo} alt="Second Thrift" className="footer-logo" />
+                        <img src={logo} alt="Second Thrift" className="footer-logo" width="640" height="640" loading="lazy" decoding="async" />
                         <p>Discover unique pre-loved clothing from Europe. Sustainable fashion at wholesale prices.</p>
                         <div className="footer-social">
                             <a href="https://www.instagram.com/second._.thriftt?igsh=MTU5MXd0ZDV3bDVsbA==" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><FiInstagram size={20} /></a>

@@ -47,7 +47,16 @@ const Register = () => {
 
     return (
         <div className="auth-page">
-            <img src={registerBg} alt="" className="auth-bg-img" />
+            <img
+                src={registerBg}
+                alt=""
+                className="auth-bg-img"
+                width="960"
+                height="1280"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"
@@ -56,7 +65,15 @@ const Register = () => {
                 transition={{ duration: 0.5 }}
             >
                 <div className="auth-header">
-                    <img src={logo} alt="Second Thrift" className="auth-logo" />
+                    <img
+                        src={logo}
+                        alt="Second Thrift"
+                        className="auth-logo"
+                        width="640"
+                        height="640"
+                        loading="eager"
+                        decoding="async"
+                    />
                     <h1>Create Account</h1>
                     <p>Join Second Thrift today</p>
                 </div>

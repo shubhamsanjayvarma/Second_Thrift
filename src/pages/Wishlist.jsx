@@ -81,7 +81,7 @@ const Wishlist = () => {
                                 >
                                     <Link to={`/product/${item.productId || item.id}`} className="wishlist-card-image">
                                         {item.image ? (
-                                            <img src={item.image} alt={item.name} loading="lazy" />
+                                            <img src={item.image} alt={item.name} loading="lazy" decoding="async" />
                                         ) : (
                                             <div className="wishlist-placeholder">
                                                 <FiShoppingBag size={28} />

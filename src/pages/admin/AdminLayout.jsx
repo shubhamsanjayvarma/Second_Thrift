@@ -61,7 +61,7 @@ const AdminLayout = () => {
             {/* Desktop / Tablet Sidebar */}
             <aside className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'} hide-on-mobile`}>
                 <div className="admin-sidebar-header">
-                    <img src={logo} alt="Second Thrift" className="admin-logo" />
+                    <img src={logo} alt="Second Thrift" className="admin-logo" width="640" height="640" loading="eager" decoding="async" />
                     <span className="admin-label">Admin Panel</span>
                 </div>
                 <nav className="admin-nav">
@@ -110,7 +110,7 @@ const AdminLayout = () => {
                             {sidebarOpen ? <FiX /> : <FiMenu />}
                         </button>
                         {/* Mobile Header Logo */}
-                        <img src={logo} alt="Second Thrift" className="admin-header-logo show-on-mobile" />
+                        <img src={logo} alt="Second Thrift" className="admin-header-logo show-on-mobile" width="640" height="640" loading="eager" decoding="async" />
                     </div>
 
                     <div className="admin-header-info">

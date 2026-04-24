@@ -11,7 +11,16 @@ const VerifyEmail = () => {
 
     return (
         <div className="auth-page">
-            <img src={verifyBg} alt="" className="auth-bg-img" />
+            <img
+                src={verifyBg}
+                alt=""
+                className="auth-bg-img"
+                width="960"
+                height="1280"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"
@@ -20,7 +29,15 @@ const VerifyEmail = () => {
                 transition={{ duration: 0.5 }}
             >
                 <div className="auth-header">
-                    <img src={logo} alt="Second Thrift" className="auth-logo" />
+                    <img
+                        src={logo}
+                        alt="Second Thrift"
+                        className="auth-logo"
+                        width="640"
+                        height="640"
+                        loading="eager"
+                        decoding="async"
+                    />
                     <div className="verify-icon-wrapper">
                         <FiMail size={48} color="var(--primary)" />
                     </div>

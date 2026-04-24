@@ -10,6 +10,32 @@ import { createOrder } from '../services/orders';
 import { formatPrice, COUNTRIES_BY_REGION, calculateOrderTotals } from '../utils/helpers';
 import './Checkout.css';
 
+const RAZORPAY_CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+let razorpayScriptPromise;
+
+const loadRazorpayCheckout = () => {
+    if (window.Razorpay) return Promise.resolve();
+    if (razorpayScriptPromise) return razorpayScriptPromise;
+
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector(`script[src="${RAZORPAY_CHECKOUT_SRC}"]`);
+        if (existingScript) {
+            existingScript.addEventListener('load', resolve, { once: true });
+            existingScript.addEventListener('error', reject, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = RAZORPAY_CHECKOUT_SRC;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Unable to load Razorpay checkout'));
+        document.body.appendChild(script);
+    });
+
+    return razorpayScriptPromise;
+};
+
 const Checkout = () => {
     const { items, subtotal, clearCart } = useCart();
     const { user } = useAuth();
@@ -87,7 +113,8 @@ const Checkout = () => {
             if (!res.ok) throw new Error('Failed to create payment order');
             const razorpayOrder = await res.json();
 
-            // 2. Open Razorpay Checkout Modal
+            // 2. Load and open Razorpay Checkout Modal only when payment is needed
+            await loadRazorpayCheckout();
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Use Razorpay test key from environment
                 amount: razorpayOrder.amount,

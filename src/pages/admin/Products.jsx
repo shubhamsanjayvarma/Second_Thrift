@@ -398,8 +398,8 @@ const AdminProducts = () => {
                                         <div className="ap-upload-zone">
                                             <FiImage size={28} />
                                             <p>Click or drag to upload images & videos</p>
-                                            <span>JPG, PNG, WEBP, MP4, MOV — Max 50MB each</span>
-                                            <input type="file" accept="image/*,video/*" multiple onChange={(e) => { if (e.target.files) setMediaFiles(prev => [...prev, ...Array.from(e.target.files)]); }} />
+                                            <span>JPG, PNG, WEBP, MP4 - Max 10MB each</span>
+                                            <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={(e) => { if (e.target.files) setMediaFiles(prev => [...prev, ...Array.from(e.target.files)]); }} />
                                         </div>
                                     </div>
                                     <div className="ap-youtube-upload" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
@@ -443,7 +443,7 @@ const AdminProducts = () => {
                                                     {file.type.startsWith('video/') ? (
                                                         <video src={URL.createObjectURL(file)} muted className="ap-media-preview" />
                                                     ) : (
-                                                        <img src={URL.createObjectURL(file)} alt="" className="ap-media-preview" />
+                                                        <img src={URL.createObjectURL(file)} alt="" className="ap-media-preview" loading="lazy" decoding="async" />
                                                     )}
                                                     <button className="ap-media-remove" onClick={() => removeNewMedia(i)}><FiX size={12} /></button>
                                                     <span className="ap-media-badge new">New</span>

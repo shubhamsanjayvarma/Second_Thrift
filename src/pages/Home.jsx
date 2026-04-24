@@ -93,21 +93,30 @@ const Home = () => {
     ];
 
     const categoryBanners = [
-        { slug: 'tops', label: 'LATEST DROP', sublabel: 'NEW ARRIVALS', img: latestDropImg },
-        { slug: 'bottoms', label: 'PREMIUM DENIM', sublabel: 'DESIGNER JEANS', img: premiumDenimImg },
-        { slug: 'outerwear', label: 'EVERYDAY LAYERS', sublabel: 'OUTERWEAR', img: outerwearImg },
-        { slug: 'dresses', label: 'COLLECTION', sublabel: 'FULL COLLECTION', img: collectionImg },
+        { slug: 'tops', label: 'LATEST DROP', sublabel: 'NEW ARRIVALS', img: latestDropImg, width: 960, height: 1280 },
+        { slug: 'bottoms', label: 'PREMIUM DENIM', sublabel: 'DESIGNER JEANS', img: premiumDenimImg, width: 1040, height: 1040 },
+        { slug: 'outerwear', label: 'EVERYDAY LAYERS', sublabel: 'OUTERWEAR', img: outerwearImg, width: 960, height: 1280 },
+        { slug: 'dresses', label: 'COLLECTION', sublabel: 'FULL COLLECTION', img: collectionImg, width: 1040, height: 1040 },
     ];
 
     const categoryImages = [
-        { slug: 'tops', name: 'TOPS', img: catTopsImg },
-        { slug: 'bottoms', name: 'BOTTOMS', img: catBottomsImg },
-        { slug: 'outerwear', name: 'OUTERWEAR', img: catOuterwearImg },
-        { slug: 'dresses', name: 'DRESSES', img: catDressesImg },
-        { slug: 'activewear', name: 'ACTIVEWEAR', img: catActivewearImg },
-        { slug: 'accessories', name: 'ACCESSORIES', img: catAccessoriesImg },
-        { slug: 'footwear', name: 'FOOTWEAR', img: catFootwearImg },
-        { slug: 'vintage', name: 'VINTAGE', img: catVintageImg },
+        { slug: 'tops', name: 'TOPS', img: catTopsImg, width: 780, height: 1040 },
+        { slug: 'bottoms', name: 'BOTTOMS', img: catBottomsImg, width: 1040, height: 1040 },
+        { slug: 'outerwear', name: 'OUTERWEAR', img: catOuterwearImg, width: 960, height: 1280 },
+        { slug: 'dresses', name: 'DRESSES', img: catDressesImg, width: 780, height: 1040 },
+        { slug: 'activewear', name: 'ACTIVEWEAR', img: catActivewearImg, width: 960, height: 1280 },
+        { slug: 'accessories', name: 'ACCESSORIES', img: catAccessoriesImg, width: 1040, height: 1040 },
+        { slug: 'footwear', name: 'FOOTWEAR', img: catFootwearImg, width: 780, height: 1040 },
+        { slug: 'vintage', name: 'VINTAGE', img: catVintageImg, width: 780, height: 1040 },
+    ];
+
+    const instagramImages = [
+        { src: insta1, width: 960, height: 1280 },
+        { src: insta2, width: 960, height: 1280 },
+        { src: insta3, width: 780, height: 1040 },
+        { src: insta4, width: 780, height: 1040 },
+        { src: insta5, width: 960, height: 1280 },
+        { src: insta6, width: 960, height: 1280 },
     ];
 
     return (
@@ -115,7 +124,16 @@ const Home = () => {
             {/* ========== HERO SECTION (Sticky - stays behind content) ========== */}
             <section className="plug-hero">
                 <div className="plug-hero-bg">
-                    <img src={heroImg} alt="" className="plug-hero-bg-img" />
+                    <img
+                        src={heroImg}
+                        alt=""
+                        className="plug-hero-bg-img"
+                        width="780"
+                        height="1040"
+                        loading="eager"
+                        decoding="async"
+                        fetchPriority="high"
+                    />
                     <div className="plug-hero-overlay" />
                 </div>
                 <div className="plug-hero-content">
@@ -188,7 +206,15 @@ const Home = () => {
                     transition={{ duration: 0.7 }}
                 >
                     <Link to="/shop" className="plug-cat-card plug-cat-full">
-                        <img src={categoryBanners[0].img} alt={categoryBanners[0].label} className="plug-cat-img" />
+                        <img
+                            src={categoryBanners[0].img}
+                            alt={categoryBanners[0].label}
+                            className="plug-cat-img"
+                            width={categoryBanners[0].width}
+                            height={categoryBanners[0].height}
+                            loading="lazy"
+                            decoding="async"
+                        />
                         <div className="plug-cat-overlay" />
                         <div className="plug-cat-text">
                             <span className="plug-cat-sublabel">{categoryBanners[0].sublabel}</span>
@@ -206,7 +232,15 @@ const Home = () => {
                             transition={{ duration: 0.6, delay: idx * 0.15 }}
                         >
                             <Link to={`/shop?category=${cat.slug}`} className="plug-cat-card">
-                                <img src={cat.img} alt={cat.label} className="plug-cat-img" />
+                                <img
+                                    src={cat.img}
+                                    alt={cat.label}
+                                    className="plug-cat-img"
+                                    width={cat.width}
+                                    height={cat.height}
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                                 <div className="plug-cat-overlay" />
                                 <div className="plug-cat-text">
                                     <span className="plug-cat-sublabel">{cat.sublabel}</span>
@@ -239,7 +273,15 @@ const Home = () => {
                                 transition={{ delay: idx * 0.08, duration: 0.5 }}
                             >
                                 <Link to={`/shop?category=${cat.slug}`} className="plug-img-cat-card">
-                                    <img src={cat.img} alt={cat.name} className="plug-img-cat-photo" />
+                                    <img
+                                        src={cat.img}
+                                        alt={cat.name}
+                                        className="plug-img-cat-photo"
+                                        width={cat.width}
+                                        height={cat.height}
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
                                     <div className="plug-img-cat-overlay" />
                                     <div className="plug-img-cat-content">
                                         <h3 className="plug-img-cat-name">{cat.name}</h3>
@@ -275,7 +317,15 @@ const Home = () => {
                             viewport={{ once: true }}
                             transition={{ duration: 0.7 }}
                         >
-                            <img src={aboutImg} alt="Behind Second Thrift" className="plug-about-img" />
+                            <img
+                                src={aboutImg}
+                                alt="Behind Second Thrift"
+                                className="plug-about-img"
+                                width="780"
+                                height="1040"
+                                loading="lazy"
+                                decoding="async"
+                            />
                         </motion.div>
                     </div>
                 </div>
@@ -283,7 +333,15 @@ const Home = () => {
 
             {/* ========== FULL-WIDTH EVISU BANNER ========== */}
             <section className="plug-evisu-banner">
-                <img src={bannerImg} alt="Premium Vintage Denim" className="plug-evisu-banner-img" />
+                <img
+                    src={bannerImg}
+                    alt="Premium Vintage Denim"
+                    className="plug-evisu-banner-img"
+                    width="960"
+                    height="1280"
+                    loading="lazy"
+                    decoding="async"
+                />
                 <div className="plug-evisu-banner-overlay" />
                 <div className="plug-evisu-banner-content">
                     <motion.div
@@ -338,7 +396,7 @@ const Home = () => {
                     </motion.div>
                     {/* Instagram Image Row */}
                     <div className="plug-insta-grid">
-                        {[insta1, insta2, insta3, insta4, insta5, insta6].map((img, idx) => (
+                        {instagramImages.map((img, idx) => (
                             <motion.a
                                 key={idx}
                                 href="https://instagram.com"
@@ -351,7 +409,14 @@ const Home = () => {
                                 transition={{ delay: idx * 0.08 }}
                                 whileHover={{ scale: 1.05 }}
                             >
-                                <img src={img} alt={`Instagram ${idx + 1}`} />
+                                <img
+                                    src={img.src}
+                                    alt={`Instagram ${idx + 1}`}
+                                    width={img.width}
+                                    height={img.height}
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                                 <div className="plug-insta-hover">
                                     <FiInstagram size={24} />
                                 </div>

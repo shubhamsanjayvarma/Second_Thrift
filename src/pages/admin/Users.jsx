@@ -109,7 +109,7 @@ const AdminUsers = () => {
                                             <td className="ap-td-user">
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                                     {user.photoURL ? (
-                                                        <img src={user.photoURL} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                                                        <img src={user.photoURL} alt="" loading="lazy" decoding="async" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
                                                     ) : (
                                                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Oswald', sans-serif", fontWeight: 600, fontSize: '0.8rem' }}>
                                                             {user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || '?'}

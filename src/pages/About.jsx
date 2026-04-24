@@ -16,7 +16,16 @@ const About = () => (
     <div className="about-page-wrap">
         {/* Hero with full-bleed image */}
         <section className="about-hero">
-            <img src={aboutHeroImg} alt="" className="about-hero-bg-img" />
+            <img
+                src={aboutHeroImg}
+                alt=""
+                className="about-hero-bg-img"
+                width="1280"
+                height="1280"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="about-hero-overlay" />
             <div className="about-hero-content container">
                 <motion.div
@@ -58,7 +67,14 @@ const About = () => (
                         viewport={{ once: true }}
                         transition={{ duration: 0.7 }}
                     >
-                        <img src={storyImg} alt="Second Thrift Story" />
+                        <img
+                            src={storyImg}
+                            alt="Second Thrift Story"
+                            width="780"
+                            height="1040"
+                            loading="lazy"
+                            decoding="async"
+                        />
                     </motion.div>
                 </div>
             </div>
@@ -66,7 +82,15 @@ const About = () => (
 
         {/* Full-width banner */}
         <section className="about-banner">
-            <img src={bannerImg} alt="Collection" className="about-banner-img" />
+            <img
+                src={bannerImg}
+                alt="Collection"
+                className="about-banner-img"
+                width="780"
+                height="1040"
+                loading="lazy"
+                decoding="async"
+            />
             <div className="about-banner-overlay" />
             <div className="about-banner-content">
                 <motion.div
@@ -95,9 +119,9 @@ const About = () => (
                 </motion.div>
                 <div className="about-features-grid">
                     {[
-                        { icon: <FiCheckCircle size={24} />, title: 'QUALITY CHECKED', text: 'Every item inspected before shipping', img: qualityImg },
-                        { icon: <FiPackage size={24} />, title: 'BULK PRICING', text: 'Wholesale deals for smart buyers', img: bulkImg },
-                        { icon: <FiGlobe size={24} />, title: 'EU SHIPPING', text: 'Fast delivery across Europe', img: shippingImg },
+                        { icon: <FiCheckCircle size={24} />, title: 'QUALITY CHECKED', text: 'Every item inspected before shipping', img: qualityImg, width: 1040, height: 1040 },
+                        { icon: <FiPackage size={24} />, title: 'BULK PRICING', text: 'Wholesale deals for smart buyers', img: bulkImg, width: 780, height: 1040 },
+                        { icon: <FiGlobe size={24} />, title: 'EU SHIPPING', text: 'Fast delivery across Europe', img: shippingImg, width: 960, height: 1280 },
                     ].map((feature, idx) => (
                         <motion.div
                             key={idx}
@@ -108,7 +132,14 @@ const About = () => (
                             transition={{ delay: idx * 0.15, duration: 0.6 }}
                         >
                             <div className="about-feature-img-wrap">
-                                <img src={feature.img} alt={feature.title} />
+                                <img
+                                    src={feature.img}
+                                    alt={feature.title}
+                                    width={feature.width}
+                                    height={feature.height}
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                                 <div className="about-feature-img-overlay" />
                             </div>
                             <div className="about-feature-info">

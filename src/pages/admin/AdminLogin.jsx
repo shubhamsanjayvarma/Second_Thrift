@@ -78,7 +78,16 @@ const AdminLogin = () => {
 
     return (
         <div className="auth-page">
-            <img src={adminBg} alt="" className="auth-bg-img" />
+            <img
+                src={adminBg}
+                alt=""
+                className="auth-bg-img"
+                width="780"
+                height="1040"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"
@@ -87,7 +96,15 @@ const AdminLogin = () => {
                 transition={{ duration: 0.5 }}
             >
                 <div className="auth-header">
-                    <img src={logo} alt="Second Thrift" className="auth-logo" />
+                    <img
+                        src={logo}
+                        alt="Second Thrift"
+                        className="auth-logo"
+                        width="640"
+                        height="640"
+                        loading="eager"
+                        decoding="async"
+                    />
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                         <FiShield style={{ color: 'var(--primary)' }} />
                         <h1 style={{ margin: 0 }}>Admin Panel</h1>

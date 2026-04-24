@@ -90,7 +90,16 @@ const Shop = () => {
     return (
         <div className="shop-page">
             <div className="shop-header">
-                <img src={shopHeroBg} alt="" className="shop-hero-bg-img" />
+                <img
+                    src={shopHeroBg}
+                    alt=""
+                    className="shop-hero-bg-img"
+                    width="780"
+                    height="1040"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                />
                 <div className="shop-hero-overlay" />
                 <div className="container shop-header-content">
                     <h1>{activeCategoryName || 'Shop All'}</h1>

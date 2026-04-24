@@ -82,6 +82,7 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
                 className={className}
                 style={style}
                 loading="lazy"
+                decoding="async"
             />
         );
     }
@@ -116,6 +117,7 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
                     className={className}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', ...style }}
                     loading="lazy"
+                    decoding="async"
                 />
             );
         }
@@ -138,6 +140,7 @@ const SmartMedia = ({ src, alt = '', className = '', style = {}, videoProps = {}
             className={className}
             style={style}
             loading="lazy"
+            decoding="async"
             onError={() => setFailed(true)}
         />
     );

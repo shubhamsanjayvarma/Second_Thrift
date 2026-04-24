@@ -31,7 +31,16 @@ const Contact = () => {
         <div className="contact-page-wrap">
             {/* Hero with full Evisu image */}
             <section className="contact-hero">
-                <img src={contactBg} alt="" className="contact-hero-bg-img" />
+                <img
+                    src={contactBg}
+                    alt=""
+                    className="contact-hero-bg-img"
+                    width="960"
+                    height="1280"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                />
                 <div className="contact-hero-overlay" />
                 <div className="contact-hero-content container">
                     <motion.div

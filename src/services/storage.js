@@ -1,11 +1,35 @@
 // Media upload/delete via MongoDB backend (Serverless API) 
 // using client-side compression to avoid Vercel's 4.5MB payload limit
+import { auth } from './firebase';
+
+const ALLOWED_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']);
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+
+const getAdminAuthHeaders = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+        throw new Error('Please sign in as admin before uploading media');
+    }
+
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+};
+
+const validateMediaFile = (file) => {
+    if (!ALLOWED_MEDIA_TYPES.has(file.type)) {
+        throw new Error('Unsupported file type. Use JPG, PNG, WEBP, or MP4.');
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE) {
+        throw new Error('File is too large. Maximum upload size is 10MB.');
+    }
+};
 
 const compressImage = async (file, maxWidth = 1920, maxHeight = 1920, quality = 0.8) => {
     // Only compress images, not videos or gifs where canvas transformation ruins them
     if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = (event) => {
@@ -47,6 +71,7 @@ const compressImage = async (file, maxWidth = 1920, maxHeight = 1920, quality = 
 
 export const uploadProductMedia = async (file) => {
     if (!file) throw new Error('No file provided');
+    validateMediaFile(file);
 
     let fileToUpload = file;
 
@@ -54,17 +79,20 @@ export const uploadProductMedia = async (file) => {
     if (file.size > 2 * 1024 * 1024 && file.type.startsWith('image/')) {
         fileToUpload = await compressImage(file, 1600, 1600, 0.75);
     }
+    validateMediaFile(fileToUpload);
 
     const formData = new FormData();
     formData.append('file', fileToUpload);
+    const headers = await getAdminAuthHeaders();
 
     const res = await fetch('/api/upload', {
         method: 'POST',
+        headers,
         body: formData,
     });
 
     if (res.status === 413) {
-        throw new Error('File too large even after compression. Vercel allows max 4.5MB.');
+        throw new Error('File too large even after compression. Please use a smaller file.');
     }
 
     if (!res.ok) {
@@ -83,7 +111,8 @@ export const uploadBannerImage = async (file) => uploadProductMedia(file);
 export const deleteImage = async (url) => {
     try {
         if (!url || !url.startsWith('/api/media')) return;
-        const res = await fetch(url, { method: 'DELETE' });
+        const headers = await getAdminAuthHeaders();
+        const res = await fetch(url, { method: 'DELETE', headers });
         if (!res.ok) console.error('Failed to delete media');
     } catch (e) {
         console.error('Failed to delete image:', e);

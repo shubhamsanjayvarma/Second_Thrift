@@ -43,7 +43,16 @@ const Login = () => {
 
     return (
         <div className="auth-page">
-            <img src={loginBg} alt="" className="auth-bg-img" />
+            <img
+                src={loginBg}
+                alt=""
+                className="auth-bg-img"
+                width="960"
+                height="1280"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="auth-bg-overlay" />
             <motion.div
                 className="auth-card"
@@ -52,7 +61,15 @@ const Login = () => {
                 transition={{ duration: 0.5 }}
             >
                 <div className="auth-header">
-                    <img src={logo} alt="Second Thrift" className="auth-logo" />
+                    <img
+                        src={logo}
+                        alt="Second Thrift"
+                        className="auth-logo"
+                        width="640"
+                        height="640"
+                        loading="eager"
+                        decoding="async"
+                    />
                     <h1>Welcome Back</h1>
                     <p>Sign in to your account</p>
                 </div>

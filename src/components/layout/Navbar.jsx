@@ -56,7 +56,7 @@ const Navbar = () => {
             >
                 <div className="navbar-inner container-wide">
                     <Link to="/" className="navbar-logo">
-                        <img src={logo} alt="Second Thrift" />
+                        <img src={logo} alt="Second Thrift" width="640" height="640" loading="eager" decoding="async" />
                     </Link>
 
                     <div className={`navbar-links ${mobileOpen ? 'active' : ''}`}>

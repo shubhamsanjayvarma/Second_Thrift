@@ -54,7 +54,7 @@ const CartSidebar = () => {
                                         >
                                             <div className="cart-item-image">
                                                 {item.image ? (
-                                                    <img src={item.image} alt={item.name} />
+                                                    <img src={item.image} alt={item.name} loading="lazy" decoding="async" />
                                                 ) : (
                                                     <div className="cart-item-placeholder">📦</div>
                                                 )}

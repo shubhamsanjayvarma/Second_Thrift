@@ -30,7 +30,16 @@ const Profile = () => {
 
     return (
         <div className="profile-page">
-            <img src={profileBg} alt="" className="profile-bg-img" />
+            <img
+                src={profileBg}
+                alt=""
+                className="profile-bg-img"
+                width="960"
+                height="1280"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+            />
             <div className="profile-bg-overlay" />
             <div className="container">
                 <motion.div
