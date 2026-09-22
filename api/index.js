@@ -513,8 +513,8 @@ const getSmtpConfig = (customSettings = {}) => {
     const secure = customSettings.smtpSecure !== undefined
         ? Boolean(customSettings.smtpSecure)
         : (process.env.SMTP_SECURE !== 'false' && process.env.SMTP_SECURE !== false);
-    const user = customSettings.smtpUser || process.env.SMTP_USER || process.env.GMAIL_USER || 'secondthriftt39@gmail.com';
-    const pass = customSettings.smtpPass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '';
+    const user = customSettings.smtpUser || process.env.SMTP_USER || process.env.GMAIL_USER || 'shivamajayverma@gmail.com';
+    const pass = customSettings.smtpPass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'gmnrmspbvgwgxjdr';
     const senderName = customSettings.senderName || 'Second Thrift';
     const senderEmail = customSettings.senderEmail || user;
     const from = customSettings.from || process.env.SMTP_FROM || `"${senderName}" <${senderEmail}>`;
