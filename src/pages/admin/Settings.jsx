@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
+import { FiSearch, FiEdit2, FiCheck, FiTrash2, FiPlus, FiRotateCcw, FiGlobe, FiPackage, FiMapPin, FiX } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
-import { getSettings, updateSettings, getDefaultSettings, DEFAULT_USA_WEIGHT_TIERS } from '../../services/settings';
+import { getSettings, updateSettings, getDefaultSettings, DEFAULT_USA_WEIGHT_TIERS, DEFAULT_EXCESS_PER_KG_RATE } from '../../services/settings';
+import { ALL_COUNTRIES } from '../../utils/helpers';
 import './Admin.css';
 
 const AdminSettings = () => {
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [shippingTab, setShippingTab] = useState('country'); // 'country' | 'weight' | 'regional'
+    const [countrySearch, setCountrySearch] = useState('');
+    const [editingCountryIdx, setEditingCountryIdx] = useState(null);
+    const [editingTierIdx, setEditingTierIdx] = useState(null);
+    const [showAddCountry, setShowAddCountry] = useState(false);
+    const [newCountryName, setNewCountryName] = useState('');
+    const [newCountryRate, setNewCountryRate] = useState('10.00');
+    const [newCountryFree, setNewCountryFree] = useState('150');
     const toast = useToast();
 
     // Load settings from Firebase on mount
@@ -49,24 +59,51 @@ const AdminSettings = () => {
         setSettings(prev => ({ ...prev, socialLinks: { ...prev.socialLinks, [field]: value } }));
     };
 
-    const addShippingRate = () => {
-        setSettings(prev => ({
-            ...prev,
-            shippingRates: [...prev.shippingRates, { country: '', rate: 0 }]
-        }));
+    const updateShippingRate = (idx, field, value) => {
+        const newRates = [...(settings.shippingRates || [])];
+        newRates[idx] = { ...newRates[idx], [field]: value };
+        updateField('shippingRates', newRates);
     };
 
     const removeShippingRate = (idx) => {
+        const removed = settings.shippingRates?.[idx]?.country;
         setSettings(prev => ({
             ...prev,
             shippingRates: prev.shippingRates.filter((_, i) => i !== idx)
         }));
+        if (editingCountryIdx === idx) setEditingCountryIdx(null);
+        toast.info(`Removed shipping rate for ${removed || 'country'}`);
+    };
+
+    const handleAddCountryRate = (e) => {
+        e.preventDefault();
+        const trimmed = newCountryName.trim();
+        if (!trimmed) {
+            toast.error('Please enter a country name');
+            return;
+        }
+        const currentRates = settings.shippingRates || [];
+        if (currentRates.some(r => r.country?.toLowerCase() === trimmed.toLowerCase())) {
+            toast.error(`A rate for ${trimmed} already exists. Click the Edit button in the list to change it.`);
+            return;
+        }
+        const newEntry = {
+            country: trimmed,
+            rate: parseFloat(newCountryRate) || 0,
+            freeThreshold: parseFloat(newCountryFree) || 0,
+        };
+        updateField('shippingRates', [...currentRates, newEntry]);
+        setNewCountryName('');
+        setNewCountryRate('10.00');
+        setNewCountryFree('150');
+        setShowAddCountry(false);
+        toast.success(`Added shipping rate for ${newEntry.country}`);
     };
 
     const updateRegionalShipping = (regionKey, field, value) => {
         const defaultReg = {
             europe: { rate: 0, label: 'Europe (Included / Free)', freeThreshold: 100 },
-            usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
+            usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 0, excessPerKgRate: DEFAULT_EXCESS_PER_KG_RATE, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
             restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
         };
         const current = { ...defaultReg, ...(settings.regionalShipping || {}) };
@@ -89,6 +126,10 @@ const AdminSettings = () => {
         return DEFAULT_USA_WEIGHT_TIERS;
     };
 
+    const getExcessPerKgRate = () => {
+        return settings?.regionalShipping?.usa?.excessPerKgRate ?? DEFAULT_EXCESS_PER_KG_RATE;
+    };
+
     const addUsaWeightTier = () => {
         const tiers = getUsaTiers();
         const lastMax = tiers.length > 0 ? Number(tiers[tiers.length - 1].maxWeight) : 10;
@@ -99,6 +140,7 @@ const AdminSettings = () => {
             label: `Up to ${nextMax} KG`,
         };
         updateRegionalShipping('usa', 'weightTiers', [...tiers, newTier]);
+        setEditingTierIdx(tiers.length);
     };
 
     const updateUsaWeightTier = (idx, field, value) => {
@@ -113,10 +155,12 @@ const AdminSettings = () => {
     const removeUsaWeightTier = (idx) => {
         const tiers = getUsaTiers().filter((_, i) => i !== idx);
         updateRegionalShipping('usa', 'weightTiers', tiers);
+        if (editingTierIdx === idx) setEditingTierIdx(null);
     };
 
     const resetUsaWeightTiers = () => {
         updateRegionalShipping('usa', 'weightTiers', DEFAULT_USA_WEIGHT_TIERS);
+        toast.info('Reset weight tiers to defaults');
     };
 
     if (loading || !settings) {
@@ -158,200 +202,495 @@ const AdminSettings = () => {
             </div>
 
             <div className="settings-section">
-                <h3>🌍 Regional Shipping & Rates (Europe vs USA)</h3>
-                <div className="settings-form">
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
-                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>🇺🇸</span> United States Shipping Rates
-                        </h4>
-                        
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                            <label>
-                                Fallback Flat Rate (€)
+                <div className="shipping-mgmt-header">
+                    <div>
+                        <h3 style={{ margin: 0 }}>🚚 Shipping & Delivery Control Center</h3>
+                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                            Full admin authority: Edit shipping charges country-wise, weight-wise, or by global region.
+                        </p>
+                    </div>
+
+                    <div className="shipping-mgmt-tabs">
+                        <button
+                            type="button"
+                            className={`shipping-mgmt-tab ${shippingTab === 'country' ? 'active' : ''}`}
+                            onClick={() => setShippingTab('country')}
+                        >
+                            <FiMapPin size={14} /> Country-Wise Rates ({settings.shippingRates?.length || 0})
+                        </button>
+                        <button
+                            type="button"
+                            className={`shipping-mgmt-tab ${shippingTab === 'weight' ? 'active' : ''}`}
+                            onClick={() => setShippingTab('weight')}
+                        >
+                            <FiPackage size={14} /> Weight-Wise Tiers ({getUsaTiers().length})
+                        </button>
+                        <button
+                            type="button"
+                            className={`shipping-mgmt-tab ${shippingTab === 'regional' ? 'active' : ''}`}
+                            onClick={() => setShippingTab('regional')}
+                        >
+                            <FiGlobe size={14} /> Regional Defaults
+                        </button>
+                    </div>
+                </div>
+
+                {/* ==================== TAB 1: COUNTRY-WISE RATES ==================== */}
+                {shippingTab === 'country' && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                            <div className="shipping-search-box">
+                                <FiSearch className="shipping-search-icon" size={15} />
                                 <input
-                                    type="number"
-                                    step="0.01"
-                                    value={settings.regionalShipping?.usa?.rate ?? 20.00}
-                                    onChange={e => updateRegionalShipping('usa', 'rate', parseFloat(e.target.value) || 0)}
+                                    type="text"
+                                    placeholder="Search country (e.g. UK, Germany, USA, France, Canada)..."
+                                    value={countrySearch}
+                                    onChange={e => setCountrySearch(e.target.value)}
                                 />
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Used if no weight tier matches</span>
-                            </label>
-                            <label>
-                                USA Free Shipping Threshold (€)
-                                <input
-                                    type="number"
-                                    step="1"
-                                    placeholder="0 to disable"
-                                    value={settings.regionalShipping?.usa?.freeThreshold ?? 0}
-                                    onChange={e => updateRegionalShipping('usa', 'freeThreshold', parseFloat(e.target.value) || 0)}
-                                />
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Set 0 to disable free shipping for USA</span>
-                            </label>
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => setShowAddCountry(!showAddCountry)}
+                            >
+                                <FiPlus size={14} /> {showAddCountry ? 'Cancel' : 'Add Country Rate'}
+                            </button>
                         </div>
 
-                        {/* Weight Tiers Table */}
-                        <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 'var(--space-4)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: 'var(--space-3)' }}>
+                        {/* Add Country Form */}
+                        {showAddCountry && (
+                            <form onSubmit={handleAddCountryRate} style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.1)', marginBottom: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr)) 120px', gap: '12px', alignItems: 'flex-end' }}>
+                                <label style={{ margin: 0 }}>
+                                    Country Name
+                                    <input
+                                        list="all-countries-list"
+                                        placeholder="Type or select country"
+                                        value={newCountryName}
+                                        onChange={e => setNewCountryName(e.target.value)}
+                                        required
+                                    />
+                                    <datalist id="all-countries-list">
+                                        {ALL_COUNTRIES.map(c => <option key={c} value={c} />)}
+                                    </datalist>
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    Shipping Charge (€)
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        value={newCountryRate}
+                                        onChange={e => setNewCountryRate(e.target.value)}
+                                        required
+                                    />
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    Free Over (€)
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        min="0"
+                                        placeholder="0 to disable"
+                                        value={newCountryFree}
+                                        onChange={e => setNewCountryFree(e.target.value)}
+                                    />
+                                </label>
+                                <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>
+                                    Save Rate
+                                </button>
+                            </form>
+                        )}
+
+                        {/* Table Column Labels */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.2fr) 130px 140px 140px', gap: '12px', padding: '0 12px 8px 12px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                            <span>Country</span>
+                            <span>Shipping Charge</span>
+                            <span>Free Shipping Over</span>
+                            <span style={{ textAlign: 'right' }}>Actions</span>
+                        </div>
+
+                        {/* Country Rate Rows */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {(settings.shippingRates || [])
+                                .filter(r => !countrySearch.trim() || r.country?.toLowerCase().includes(countrySearch.toLowerCase()))
+                                .map((rate) => {
+                                    const idx = (settings.shippingRates || []).indexOf(rate);
+                                    const isEditing = editingCountryIdx === idx;
+
+                                    return (
+                                        <div key={rate.country || idx} className={`shipping-rate-row ${isEditing ? 'is-editing' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.2fr) 130px 140px 140px', gap: '12px', alignItems: 'center' }}>
+                                            {/* Country */}
+                                            <div>
+                                                {isEditing ? (
+                                                    <input
+                                                        type="text"
+                                                        value={rate.country}
+                                                        onChange={e => updateShippingRate(idx, 'country', e.target.value)}
+                                                        style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
+                                                    />
+                                                ) : (
+                                                    <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#fff' }}>
+                                                        {rate.country}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Shipping Charge */}
+                                            <div>
+                                                {isEditing ? (
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            value={rate.rate}
+                                                            onChange={e => updateShippingRate(idx, 'rate', parseFloat(e.target.value) || 0)}
+                                                            style={{ width: '100%', fontSize: '0.85rem', padding: '6px 20px 6px 8px' }}
+                                                        />
+                                                        <span style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }}>€</span>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ color: rate.rate === 0 ? 'var(--success)' : 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                                        {rate.rate === 0 ? 'FREE (€0.00)' : `€${Number(rate.rate).toFixed(2)}`}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Free Threshold */}
+                                            <div>
+                                                {isEditing ? (
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="1"
+                                                            min="0"
+                                                            value={rate.freeThreshold ?? 0}
+                                                            onChange={e => updateShippingRate(idx, 'freeThreshold', parseFloat(e.target.value) || 0)}
+                                                            placeholder="0 = off"
+                                                            style={{ width: '100%', fontSize: '0.85rem', padding: '6px 20px 6px 8px' }}
+                                                        />
+                                                        <span style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }}>€</span>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontSize: '0.8rem', color: rate.freeThreshold > 0 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                                                        {rate.freeThreshold > 0 ? `Orders > €${rate.freeThreshold}` : 'Disabled'}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                {isEditing ? (
+                                                    <button
+                                                        type="button"
+                                                        className="btn-save-inline"
+                                                        onClick={() => setEditingCountryIdx(null)}
+                                                        title="Done editing"
+                                                    >
+                                                        <FiCheck size={13} /> Done
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        className="btn-edit-action"
+                                                        onClick={() => setEditingCountryIdx(idx)}
+                                                        title={`Edit shipping charge for ${rate.country}`}
+                                                    >
+                                                        <FiEdit2 size={12} /> Edit
+                                                    </button>
+                                                )}
+
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-sm"
+                                                    onClick={() => removeShippingRate(idx)}
+                                                    style={{ color: '#ff4444', padding: '0.4rem', height: '32px', width: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    title={`Delete ${rate.country}`}
+                                                >
+                                                    <FiTrash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                            {(settings.shippingRates || []).filter(r => !countrySearch.trim() || r.country?.toLowerCase().includes(countrySearch.toLowerCase())).length === 0 && (
+                                <div style={{ textAlign: 'center', padding: '28px', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '8px' }}>
+                                    No countries matched "{countrySearch}". Click <strong>+ Add Country Rate</strong> above to add it.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ==================== TAB 2: WEIGHT-WISE TIERS ==================== */}
+                {shippingTab === 'weight' && (
+                    <div>
+                        <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                 <div>
-                                    <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        ⚖️ USA Weight-Based Shipping Tiers (10 KG, 20 KG, etc.)
-                                    </h5>
+                                    <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span>⚖️</span> Weight-Based Tier Configuration (USA & Heavy Bales)
+                                    </h4>
                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                                        Shipping is computed from total cart weight. Set custom rates for 10 kg, 20 kg bundles, or add any custom weight tiers.
+                                        Package weight is dynamically calculated from cart items (e.g. 10 KG bundle, 20 KG bale).
                                     </p>
                                 </div>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                     <button type="button" className="btn btn-ghost btn-sm" onClick={resetUsaWeightTiers} title="Reset to standard tiers">
-                                        ↺ Reset Defaults
+                                        <FiRotateCcw size={12} /> Reset Defaults
                                     </button>
                                     <button type="button" className="btn btn-primary btn-sm" onClick={addUsaWeightTier}>
-                                        + Add Weight Tier
+                                        <FiPlus size={14} /> Add Weight Tier
                                     </button>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '130px 120px 1fr 40px', gap: '10px', padding: '0 4px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                                    <span>Max Weight</span>
-                                    <span>Rate (€)</span>
-                                    <span>Tier Description</span>
-                                    <span></span>
-                                </div>
+                            {/* Excess weight surcharge input */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                                <label style={{ margin: 0 }}>
+                                    Excess Weight Surcharge (€ per extra KG)
+                                    <input
+                                        type="number"
+                                        step="0.5"
+                                        min="0"
+                                        value={getExcessPerKgRate()}
+                                        onChange={e => updateRegionalShipping('usa', 'excessPerKgRate', parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Applied if order weight exceeds highest tier</span>
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    USA Fallback Flat Rate (€)
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={settings.regionalShipping?.usa?.rate ?? 20.00}
+                                        onChange={e => updateRegionalShipping('usa', 'rate', parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Used if no weight tier matches</span>
+                                </label>
+                            </div>
+                        </div>
 
-                                {getUsaTiers().map((tier, idx) => (
-                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '130px 120px 1fr 40px', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <div style={{ position: 'relative' }}>
-                                            <input
-                                                type="number"
-                                                step="0.5"
-                                                min="0.1"
-                                                value={tier.maxWeight}
-                                                onChange={e => updateUsaWeightTier(idx, 'maxWeight', parseFloat(e.target.value) || 0)}
-                                                style={{ width: '100%', paddingRight: '28px' }}
-                                                placeholder="e.g. 10"
-                                            />
-                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-muted)', pointerEvents: 'none' }}>KG</span>
+                        {/* Weight Tiers Table Headers */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '130px 130px 1fr 140px', gap: '12px', padding: '0 12px 8px 12px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                            <span>Max Weight</span>
+                            <span>Shipping Rate</span>
+                            <span>Tier Description / Label</span>
+                            <span style={{ textAlign: 'right' }}>Actions</span>
+                        </div>
+
+                        {/* Weight Tier Rows */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {getUsaTiers().map((tier, idx) => {
+                                const isEditing = editingTierIdx === idx;
+
+                                return (
+                                    <div key={idx} className={`shipping-rate-row ${isEditing ? 'is-editing' : ''}`} style={{ display: 'grid', gridTemplateColumns: '130px 130px 1fr 140px', gap: '12px', alignItems: 'center' }}>
+                                        {/* Max Weight */}
+                                        <div>
+                                            {isEditing ? (
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="number"
+                                                        step="0.5"
+                                                        min="0.1"
+                                                        value={tier.maxWeight}
+                                                        onChange={e => updateUsaWeightTier(idx, 'maxWeight', parseFloat(e.target.value) || 0)}
+                                                        style={{ width: '100%', fontSize: '0.85rem', padding: '6px 26px 6px 8px' }}
+                                                    />
+                                                    <span style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-muted)', pointerEvents: 'none' }}>KG</span>
+                                                </div>
+                                            ) : (
+                                                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fff' }}>
+                                                    {tier.maxWeight} KG
+                                                </span>
+                                            )}
                                         </div>
 
-                                        <div style={{ position: 'relative' }}>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                value={tier.rate}
-                                                onChange={e => updateUsaWeightTier(idx, 'rate', parseFloat(e.target.value) || 0)}
-                                                style={{ width: '100%', paddingRight: '22px' }}
-                                                placeholder="0.00"
-                                            />
-                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }}>€</span>
+                                        {/* Shipping Rate */}
+                                        <div>
+                                            {isEditing ? (
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={tier.rate}
+                                                        onChange={e => updateUsaWeightTier(idx, 'rate', parseFloat(e.target.value) || 0)}
+                                                        style={{ width: '100%', fontSize: '0.85rem', padding: '6px 20px 6px 8px' }}
+                                                    />
+                                                    <span style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }}>€</span>
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+                                                    €{Number(tier.rate).toFixed(2)}
+                                                </span>
+                                            )}
                                         </div>
 
-                                        <input
-                                            type="text"
-                                            value={tier.label || ''}
-                                            onChange={e => updateUsaWeightTier(idx, 'label', e.target.value)}
-                                            placeholder={`Up to ${tier.maxWeight} KG`}
-                                            style={{ width: '100%' }}
-                                        />
+                                        {/* Description */}
+                                        <div>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    value={tier.label || ''}
+                                                    onChange={e => updateUsaWeightTier(idx, 'label', e.target.value)}
+                                                    placeholder={`Up to ${tier.maxWeight} KG`}
+                                                    style={{ width: '100%', fontSize: '0.85rem', padding: '6px 8px' }}
+                                                />
+                                            ) : (
+                                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                    {tier.label || `Up to ${tier.maxWeight} KG`}
+                                                </span>
+                                            )}
+                                        </div>
 
-                                        <button
-                                            type="button"
-                                            className="btn btn-ghost btn-sm"
-                                            onClick={() => removeUsaWeightTier(idx)}
-                                            style={{ color: '#ff4444', padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                            title="Delete tier"
-                                        >
-                                            ✕
-                                        </button>
+                                        {/* Actions */}
+                                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            {isEditing ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn-save-inline"
+                                                    onClick={() => setEditingTierIdx(null)}
+                                                    title="Done editing"
+                                                >
+                                                    <FiCheck size={13} /> Done
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="btn-edit-action"
+                                                    onClick={() => setEditingTierIdx(idx)}
+                                                    title={`Edit ${tier.label}`}
+                                                >
+                                                    <FiEdit2 size={12} /> Edit
+                                                </button>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost btn-sm"
+                                                onClick={() => removeUsaWeightTier(idx)}
+                                                style={{ color: '#ff4444', padding: '0.4rem', height: '32px', width: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                title="Delete tier"
+                                            >
+                                                <FiTrash2 size={13} />
+                                            </button>
+                                        </div>
                                     </div>
-                                ))}
+                                );
+                            })}
+                        </div>
+
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '14px' }}>
+                            💡 <em>Any order exceeding {Math.max(...getUsaTiers().map(t => Number(t.maxWeight) || 0))} KG will automatically apply the top tier rate plus €{getExcessPerKgRate()}/KG for the excess weight.</em>
+                        </p>
+                    </div>
+                )}
+
+                {/* ==================== TAB 3: REGIONAL DEFAULTS ==================== */}
+                {shippingTab === 'regional' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        {/* Europe */}
+                        <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🇪🇺</span> Europe (Primary Market)
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                                <label style={{ margin: 0 }}>
+                                    Europe Shipping Rate (€)
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={settings.regionalShipping?.europe?.rate ?? 0}
+                                        onChange={e => updateRegionalShipping('europe', 'rate', parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0 = Free European Delivery</span>
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    Europe Free Shipping Threshold (€)
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={settings.regionalShipping?.europe?.freeThreshold ?? (settings.freeShippingThreshold || 100)}
+                                        onChange={e => {
+                                            const val = parseFloat(e.target.value) || 0;
+                                            updateRegionalShipping('europe', 'freeThreshold', val);
+                                            updateField('freeShippingThreshold', val);
+                                        }}
+                                    />
+                                </label>
                             </div>
-                            
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '10px' }}>
-                                💡 <em>Orders over {Math.max(...getUsaTiers().map(t => Number(t.maxWeight) || 0))} KG will automatically apply the top tier rate plus a €6/KG excess weight surcharge.</em>
-                            </p>
                         </div>
-                    </div>
 
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
-                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>🇪🇺</span> Europe Shipping (Primary Market)
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
-                            <label>
-                                Europe Shipping Rate (€)
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={settings.regionalShipping?.europe?.rate ?? 0}
-                                    onChange={e => updateRegionalShipping('europe', 'rate', parseFloat(e.target.value) || 0)}
-                                />
-                            </label>
-                            <label>
-                                Europe Free Shipping Threshold (€)
-                                <input
-                                    type="number"
-                                    step="1"
-                                    value={settings.regionalShipping?.europe?.freeThreshold ?? (settings.freeShippingThreshold || 100)}
-                                    onChange={e => {
-                                        const val = parseFloat(e.target.value) || 0;
-                                        updateRegionalShipping('europe', 'freeThreshold', val);
-                                        updateField('freeShippingThreshold', val);
-                                    }}
-                                />
-                            </label>
-                        </div>
-                    </div>
-
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
-                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>🌐</span> Rest of the World Shipping
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
-                            <label>
-                                Rest of World Rate (€)
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={settings.regionalShipping?.restOfWorld?.rate ?? 25.00}
-                                    onChange={e => updateRegionalShipping('restOfWorld', 'rate', parseFloat(e.target.value) || 0)}
-                                />
-                            </label>
-                            <label>
-                                Rest of World Free Threshold (€)
-                                <input
-                                    type="number"
-                                    step="1"
-                                    value={settings.regionalShipping?.restOfWorld?.freeThreshold ?? 200}
-                                    onChange={e => updateRegionalShipping('restOfWorld', 'freeThreshold', parseFloat(e.target.value) || 0)}
-                                />
-                            </label>
-                        </div>
-                    </div>
-
-                    <label>Tax Rate (%) <input type="number" value={settings.taxRate} onChange={e => updateField('taxRate', parseFloat(e.target.value))} /></label>
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                            <h4 style={{ fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', color: 'var(--text-secondary)', margin: 0 }}>Specific Country Overrides</h4>
-                            <button className="btn btn-ghost btn-sm" onClick={addShippingRate}>+ Add Rate</button>
-                        </div>
-                        {settings.shippingRates.map((rate, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-2)', alignItems: 'center' }}>
-                                <input value={rate.country} onChange={e => {
-                                    const newRates = [...settings.shippingRates];
-                                    newRates[idx].country = e.target.value;
-                                    updateField('shippingRates', newRates);
-                                }} style={{ flex: 1 }} placeholder="Country" />
-                                <input type="number" step="0.01" value={rate.rate} onChange={e => {
-                                    const newRates = [...settings.shippingRates];
-                                    newRates[idx].rate = parseFloat(e.target.value);
-                                    updateField('shippingRates', newRates);
-                                }} style={{ width: '100px' }} placeholder="€" />
-                                <button className="btn btn-ghost btn-sm" onClick={() => removeShippingRate(idx)} style={{ color: '#ff4444', padding: '0.4rem' }}>✕</button>
+                        {/* USA */}
+                        <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🇺🇸</span> United States Shipping
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                                <label style={{ margin: 0 }}>
+                                    USA Base Rate (€)
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={settings.regionalShipping?.usa?.rate ?? 20.00}
+                                        onChange={e => updateRegionalShipping('usa', 'rate', parseFloat(e.target.value) || 0)}
+                                    />
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    USA Free Shipping Threshold (€)
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        placeholder="0 to disable"
+                                        value={settings.regionalShipping?.usa?.freeThreshold ?? 0}
+                                        onChange={e => updateRegionalShipping('usa', 'freeThreshold', parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0 = Disabled (no free shipping)</span>
+                                </label>
                             </div>
-                        ))}
+                        </div>
+
+                        {/* Rest of World */}
+                        <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                            <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🌐</span> Rest of the World
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                                <label style={{ margin: 0 }}>
+                                    Rest of World Rate (€)
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={settings.regionalShipping?.restOfWorld?.rate ?? 25.00}
+                                        onChange={e => updateRegionalShipping('restOfWorld', 'rate', parseFloat(e.target.value) || 0)}
+                                    />
+                                </label>
+                                <label style={{ margin: 0 }}>
+                                    Rest of World Free Threshold (€)
+                                    <input
+                                        type="number"
+                                        step="1"
+                                        value={settings.regionalShipping?.restOfWorld?.freeThreshold ?? 200}
+                                        onChange={e => updateRegionalShipping('restOfWorld', 'freeThreshold', parseFloat(e.target.value) || 0)}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+
+                        <label>
+                            Tax Rate (%)
+                            <input
+                                type="number"
+                                value={settings.taxRate}
+                                onChange={e => updateField('taxRate', parseFloat(e.target.value))}
+                            />
+                        </label>
                     </div>
-                </div>
+                )}
             </div>
 
             <div className="settings-section">

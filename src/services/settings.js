@@ -24,6 +24,8 @@ export const subscribeToSettings = (callback) => {
     });
 };
 
+export const DEFAULT_EXCESS_PER_KG_RATE = 6.00;
+
 export const DEFAULT_USA_WEIGHT_TIERS = [
     { maxWeight: 2, rate: 20.00, label: 'Up to 2 KG' },
     { maxWeight: 5, rate: 35.00, label: 'Up to 5 KG' },
@@ -40,19 +42,20 @@ export const getDefaultSettings = () => ({
     bannerText: 'Free shipping on orders over €100! Use code: THRIFT100',
     bannerActive: true,
     shippingRates: [
-        { country: 'Germany', rate: 5.99 },
-        { country: 'France', rate: 7.99 },
-        { country: 'Netherlands', rate: 6.99 },
-        { country: 'Belgium', rate: 6.99 },
-        { country: 'Austria', rate: 6.99 },
-        { country: 'Poland', rate: 8.99 },
-        { country: 'Italy', rate: 8.99 },
-        { country: 'Spain', rate: 9.99 },
-        { country: 'United Kingdom', rate: 12.99 },
-        { country: 'Sweden', rate: 10.99 },
-        { country: 'Denmark', rate: 9.99 },
-        { country: 'Czech Republic', rate: 8.99 },
-        { country: 'Other EU', rate: 14.99 },
+        { country: 'Germany', rate: 0, freeThreshold: 100 },
+        { country: 'France', rate: 0, freeThreshold: 100 },
+        { country: 'Netherlands', rate: 0, freeThreshold: 100 },
+        { country: 'Belgium', rate: 0, freeThreshold: 100 },
+        { country: 'Austria', rate: 0, freeThreshold: 100 },
+        { country: 'Italy', rate: 0, freeThreshold: 100 },
+        { country: 'Spain', rate: 0, freeThreshold: 100 },
+        { country: 'Poland', rate: 0, freeThreshold: 100 },
+        { country: 'United Kingdom', rate: 12.99, freeThreshold: 150 },
+        { country: 'United States', rate: 20.00, freeThreshold: 0 },
+        { country: 'Canada', rate: 25.00, freeThreshold: 180 },
+        { country: 'Australia', rate: 30.00, freeThreshold: 220 },
+        { country: 'Sweden', rate: 0, freeThreshold: 100 },
+        { country: 'Denmark', rate: 0, freeThreshold: 100 },
     ],
     freeShippingThreshold: 100,
     regionalShipping: {
@@ -61,9 +64,15 @@ export const getDefaultSettings = () => ({
             rate: 20.00,
             label: 'United States (Express Courier)',
             freeThreshold: 0,
+            excessPerKgRate: DEFAULT_EXCESS_PER_KG_RATE,
             weightTiers: DEFAULT_USA_WEIGHT_TIERS,
         },
         restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
+    },
+    weightShipping: {
+        enabled: true,
+        excessPerKgRate: DEFAULT_EXCESS_PER_KG_RATE,
+        tiers: DEFAULT_USA_WEIGHT_TIERS,
     },
     taxRate: 19,
     ownerWhatsApp: import.meta.env.VITE_OWNER_WHATSAPP || '+491234567890',

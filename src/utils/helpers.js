@@ -116,10 +116,10 @@ export const getUsaShippingForWeight = (totalWeight, usaConfig) => {
         };
     }
 
-    // Weight exceeds highest tier: highest tier rate + €6 per excess kg
+    // Weight exceeds highest tier: highest tier rate + per-KG surplus
     const highest = tiers[tiers.length - 1];
     const excessWeight = Math.max(0, totalWeight - highest.maxWeight);
-    const perKgRate = 6.00;
+    const perKgRate = Number(usaConfig?.excessPerKgRate) || 6.00;
     const surplus = Math.ceil(excessWeight) * perKgRate;
     const finalRate = highest.rate + surplus;
 
@@ -137,7 +137,7 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
     
     const regional = settings?.regionalShipping || {
         europe: { rate: 0, freeThreshold: 100 },
-        usa: { rate: 20.00, freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
+        usa: { rate: 20.00, freeThreshold: 0, excessPerKgRate: 6.00, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
         restOfWorld: { rate: 25.00, freeThreshold: 200 },
     };
 
@@ -148,19 +148,19 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
     const normalizedCountry = (destinationCountry || '').trim().toLowerCase();
 
     if (normalizedCountry) {
-        // 1. Check specific country overrides first
+        // Check specific country overrides first
         const countryOverride = settings?.shippingRates?.find(
             r => r.country && r.country.trim().toLowerCase() === normalizedCountry
         );
 
-        if (countryOverride && typeof countryOverride.rate === 'number') {
-            shipping = countryOverride.rate;
-            shippingLabel = `${countryOverride.country} Delivery`;
-        } else if (normalizedCountry === 'united states' || normalizedCountry === 'usa' || normalizedCountry === 'us') {
+        const isUSA = normalizedCountry === 'united states' || normalizedCountry === 'usa' || normalizedCountry === 'us';
+
+        if (isUSA) {
             shippingZone = 'usa';
-            const usaConfig = regional.usa || { rate: 20, freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS };
-            const isFree = usaConfig.freeThreshold > 0 && subtotal >= usaConfig.freeThreshold;
-            
+            const usaConfig = regional.usa || { rate: 20, freeThreshold: 0, excessPerKgRate: 6.00, weightTiers: DEFAULT_USA_WEIGHT_TIERS };
+            const freeThreshold = countryOverride?.freeThreshold !== undefined ? Number(countryOverride.freeThreshold) : Number(usaConfig.freeThreshold || 0);
+            const isFree = freeThreshold > 0 && subtotal >= freeThreshold;
+
             if (isFree) {
                 shipping = 0;
                 shippingLabel = 'USA Express (Free Shipping)';
@@ -169,6 +169,14 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
                 shipping = weightShipping.rate;
                 shippingLabel = weightShipping.label;
             }
+        } else if (countryOverride && typeof countryOverride.rate === 'number') {
+            const freeThreshold = Number(countryOverride.freeThreshold) || 0;
+            const isFree = (countryOverride.rate === 0) || (freeThreshold > 0 && subtotal >= freeThreshold);
+            shipping = isFree ? 0 : countryOverride.rate;
+            shippingLabel = isFree
+                ? `${countryOverride.country} Delivery (Free Shipping)`
+                : `${countryOverride.country} Delivery`;
+            shippingZone = COUNTRIES_BY_REGION['Europe']?.some(c => c.toLowerCase() === normalizedCountry) ? 'europe' : 'restOfWorld';
         } else {
             const isEurope = COUNTRIES_BY_REGION['Europe']?.some(
                 c => c.toLowerCase() === normalizedCountry
