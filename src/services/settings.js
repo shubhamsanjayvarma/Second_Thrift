@@ -95,7 +95,7 @@ export const getDefaultSettings = () => ({
         smtpPort: 465,
         smtpSecure: true,
         smtpUser: 'secondthriftt.1@gmail.com',
-        smtpPass: '',
+        smtpPass: 'eubhcazxqndcmzpd',
     },
     currency: 'EUR',
     currencySymbol: '€',
