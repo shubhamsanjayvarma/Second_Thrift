@@ -130,38 +130,83 @@ export const getUsaShippingForWeight = (totalWeight, usaConfig) => {
     };
 };
 
+// The 6 designated countries with Free Shipping
+export const FREE_SHIPPING_COUNTRIES = [
+    'australia',
+    'austria',
+    'germany',
+    'france',
+    'united kingdom',
+    'italy',
+];
+
+export const FREE_SHIPPING_ALIASES = {
+    'uk': 'united kingdom',
+    'great britain': 'united kingdom',
+    'gb': 'united kingdom',
+    'deutschland': 'germany',
+    'de': 'germany',
+    'italia': 'italy',
+    'it': 'italy',
+    'fr': 'france',
+    'at': 'austria',
+    'au': 'australia',
+};
+
 // Calculate order totals dynamically based on destination country and store settings
 export const calculateOrderTotals = (items, destinationCountry = '', settings = null) => {
     const subtotal = (items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
     const totalWeight = calculateCartWeight(items);
     
     const regional = settings?.regionalShipping || {
-        europe: { rate: 0, freeThreshold: 100 },
-        usa: { rate: 20.00, freeThreshold: 0, excessPerKgRate: 6.00, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
-        restOfWorld: { rate: 25.00, freeThreshold: 200 },
+        europe: { rate: 15.00, label: 'Europe Standard Delivery', freeThreshold: 0 },
+        usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 0, excessPerKgRate: 6.00, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
+        restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 0 },
     };
 
     let shipping = 0;
     let shippingZone = 'europe';
-    let shippingLabel = 'Europe (Included / Free)';
+    let shippingLabel = 'Standard Delivery';
 
     const normalizedCountry = (destinationCountry || '').trim().toLowerCase();
+    const canonicalCountry = FREE_SHIPPING_ALIASES[normalizedCountry] || normalizedCountry;
+    const isFreeShippingCountry = FREE_SHIPPING_COUNTRIES.includes(canonicalCountry);
 
     if (normalizedCountry) {
         // Check specific country overrides first
         const countryOverride = settings?.shippingRates?.find(
-            r => r.country && r.country.trim().toLowerCase() === normalizedCountry
+            r => r.country && (
+                r.country.trim().toLowerCase() === normalizedCountry ||
+                r.country.trim().toLowerCase() === canonicalCountry
+            )
         );
 
         const isUSA = normalizedCountry === 'united states' || normalizedCountry === 'usa' || normalizedCountry === 'us';
 
-        // Check if all items in cart qualify for free shipping promotion
+        // Check if all items in cart qualify for promotional free shipping
         const allItemsFree = (items || []).length > 0 && (items || []).every(i => i.isFreeShipping || i.shippingType === 'free');
 
         if (allItemsFree) {
             shipping = 0;
             shippingLabel = 'Free Shipping (Item Promotion)';
             shippingZone = isUSA ? 'usa' : (COUNTRIES_BY_REGION['Europe']?.some(c => c.toLowerCase() === normalizedCountry) ? 'europe' : 'restOfWorld');
+        } else if (isFreeShippingCountry) {
+            // ONLY Australia, Austria, Germany, France, United Kingdom, and Italy receive Free Shipping
+            shippingZone = canonicalCountry === 'australia' ? 'oceania' : 'europe';
+
+            // If admin explicitly set a custom paid rate in Settings > Country Rates, respect admin's override:
+            if (countryOverride && typeof countryOverride.rate === 'number' && countryOverride.rate > 0) {
+                const freeThreshold = Number(countryOverride.freeThreshold) || 0;
+                const isFree = freeThreshold > 0 && subtotal >= freeThreshold;
+                shipping = isFree ? 0 : countryOverride.rate;
+                shippingLabel = isFree
+                    ? `${countryOverride.country || destinationCountry} Delivery (Free Shipping)`
+                    : `${countryOverride.country || destinationCountry} Delivery`;
+            } else {
+                shipping = 0;
+                const countryTitle = countryOverride?.country || (destinationCountry.charAt(0).toUpperCase() + destinationCountry.slice(1));
+                shippingLabel = `${countryTitle} Delivery (Free Shipping)`;
+            }
         } else if (isUSA) {
             shippingZone = 'usa';
             const usaConfig = regional.usa || { rate: 20, freeThreshold: 0, excessPerKgRate: 6.00, weightTiers: DEFAULT_USA_WEIGHT_TIERS };
@@ -204,19 +249,19 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
                         return sum;
                     }, 0);
                     shipping = customEuTotal;
-                    shippingLabel = customEuTotal === 0 ? 'Europe (Included / Free)' : 'Europe Delivery';
+                    shippingLabel = customEuTotal === 0 ? `${destinationCountry} Delivery (Free)` : `${destinationCountry} Delivery`;
                 } else if (countryOverride && typeof countryOverride.rate === 'number') {
                     const freeThreshold = Number(countryOverride.freeThreshold) || 0;
-                    const isFree = (countryOverride.rate === 0) || (freeThreshold > 0 && subtotal >= freeThreshold);
+                    const isFree = freeThreshold > 0 && subtotal >= freeThreshold;
                     shipping = isFree ? 0 : countryOverride.rate;
                     shippingLabel = isFree
                         ? `${countryOverride.country} Delivery (Free Shipping)`
                         : `${countryOverride.country} Delivery`;
                 } else {
-                    const euConfig = regional.europe || { rate: 0, freeThreshold: 100 };
-                    const isFree = (euConfig.rate === 0) || (euConfig.freeThreshold > 0 && subtotal >= euConfig.freeThreshold);
-                    shipping = isFree ? 0 : (Number(euConfig.rate) || 0);
-                    shippingLabel = isFree ? 'Europe (Included / Free)' : 'Europe Standard';
+                    const euConfig = regional.europe || { rate: 15.00, freeThreshold: 0 };
+                    const isFree = euConfig.freeThreshold > 0 && subtotal >= euConfig.freeThreshold;
+                    shipping = isFree ? 0 : (Number(euConfig.rate) || 15.00);
+                    shippingLabel = `${destinationCountry || 'Europe'} Delivery`;
                 }
             } else {
                 shippingZone = 'restOfWorld';
@@ -233,22 +278,23 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
                     shippingLabel = customRowTotal === 0 ? 'International (Free)' : 'International Courier';
                 } else if (countryOverride && typeof countryOverride.rate === 'number') {
                     const freeThreshold = Number(countryOverride.freeThreshold) || 0;
-                    const isFree = (countryOverride.rate === 0) || (freeThreshold > 0 && subtotal >= freeThreshold);
+                    const isFree = freeThreshold > 0 && subtotal >= freeThreshold;
                     shipping = isFree ? 0 : countryOverride.rate;
                     shippingLabel = isFree
                         ? `${countryOverride.country} Delivery (Free Shipping)`
                         : `${countryOverride.country} Delivery`;
                 } else {
-                    const rowConfig = regional.restOfWorld || { rate: 25, freeThreshold: 200 };
+                    const rowConfig = regional.restOfWorld || { rate: 25.00, freeThreshold: 0 };
                     const isFree = rowConfig.freeThreshold > 0 && subtotal >= rowConfig.freeThreshold;
-                    shipping = isFree ? 0 : (Number(rowConfig.rate) || 25);
-                    shippingLabel = isFree ? 'International (Free)' : 'International Courier';
+                    shipping = isFree ? 0 : (Number(rowConfig.rate) || 25.00);
+                    shippingLabel = 'International Courier';
                 }
             }
         }
     } else {
-        shipping = Number(regional.europe?.rate) || 0;
-        shippingLabel = 'Europe (Included / Free)';
+        // No country selected yet
+        shipping = 0;
+        shippingLabel = 'Select country at checkout';
     }
 
     const total = subtotal + shipping;

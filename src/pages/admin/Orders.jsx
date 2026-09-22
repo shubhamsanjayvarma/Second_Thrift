@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FiEye, FiTruck, FiCheckCircle, FiPhone, FiRefreshCw, FiTrash2, FiFileText, FiXCircle, FiActivity, FiMail } from 'react-icons/fi';
+import { FiEye, FiTruck, FiCheckCircle, FiPhone, FiRefreshCw, FiTrash2, FiFileText, FiXCircle, FiActivity, FiMail, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useToast } from '../../components/common/Toast';
 import { formatPrice, ORDER_STATUSES } from '../../utils/helpers';
-import { subscribeToAllOrders, updateOrderStatus, deleteOrder, updateOrderPaymentStatus, updateOrderShipping, cancelOrderShipping } from '../../services/orders';
+import { subscribeToAllOrders, updateOrderStatus, deleteOrder, updateOrderPaymentStatus, updateOrderShipping, cancelOrderShipping, updateOrderShippingFee } from '../../services/orders';
 import { getWhatsAppLink } from '../../services/whatsapp';
 import './Admin.css';
 
@@ -20,6 +20,8 @@ const AdminOrders = () => {
     const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
     const [activeTrackingData, setActiveTrackingData] = useState(null);
     const [isTrackingLoading, setIsTrackingLoading] = useState(false);
+    const [editingShipping, setEditingShipping] = useState(false);
+    const [shippingInputVal, setShippingInputVal] = useState('');
 
     // Real-time orders subscription
     useEffect(() => {
@@ -576,7 +578,66 @@ const AdminOrders = () => {
 
                                 <div style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', background: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', fontSize: 'var(--text-sm)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>Subtotal</span><span>{formatPrice(selectedOrder.subtotal)}</span></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>Shipping</span><span>{selectedOrder.shipping === 0 ? 'FREE' : formatPrice(selectedOrder.shipping)}</span></div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            Shipping
+                                            {!editingShipping && (
+                                                <button
+                                                    className="btn btn-ghost"
+                                                    style={{ padding: '2px 4px', height: 'auto', fontSize: '11px', color: 'var(--primary)', cursor: 'pointer' }}
+                                                    onClick={() => {
+                                                        setShippingInputVal(String(selectedOrder.shipping ?? 0));
+                                                        setEditingShipping(true);
+                                                    }}
+                                                    title="Edit Shipping Fee"
+                                                >
+                                                    <FiEdit2 size={12} /> Edit
+                                                </button>
+                                            )}
+                                        </span>
+                                        {editingShipping ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{ fontSize: '12px' }}>€</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={shippingInputVal}
+                                                    onChange={e => setShippingInputVal(e.target.value)}
+                                                    style={{ width: '70px', padding: '2px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-main)', color: '#fff' }}
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    className="btn btn-primary"
+                                                    style={{ padding: '2px 6px', height: 'auto', fontSize: '11px' }}
+                                                    onClick={async () => {
+                                                        try {
+                                                            const newFee = parseFloat(shippingInputVal) || 0;
+                                                            const res = await updateOrderShippingFee(selectedOrder.id, newFee);
+                                                            setSelectedOrder(prev => ({ ...prev, shipping: res.shipping, total: res.total }));
+                                                            setEditingShipping(false);
+                                                            toast.success(`Shipping updated to €${res.shipping.toFixed(2)} (New Total: €${res.total.toFixed(2)})`);
+                                                        } catch (err) {
+                                                            toast.error(err.message || 'Failed to update shipping fee');
+                                                        }
+                                                    }}
+                                                    title="Save"
+                                                >
+                                                    <FiCheck size={12} />
+                                                </button>
+                                                <button
+                                                    className="btn btn-ghost"
+                                                    style={{ padding: '2px 6px', height: 'auto', fontSize: '11px' }}
+                                                    onClick={() => setEditingShipping(false)}
+                                                    title="Cancel"
+                                                >
+                                                    <FiX size={12} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span>{selectedOrder.shipping === 0 ? 'FREE' : formatPrice(selectedOrder.shipping)}</span>
+                                        )}
+                                    </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span>Tax (19%)</span><span>{formatPrice(selectedOrder.tax)}</span></div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', marginTop: 'var(--space-2)', borderTop: '2px solid var(--border-color)', fontWeight: 700, fontSize: 'var(--text-lg)', color: 'var(--primary)' }}>
                                         <span>Total</span><span>{formatPrice(selectedOrder.total)}</span>

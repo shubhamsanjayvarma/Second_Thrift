@@ -83,7 +83,7 @@ export const RegionProvider = ({ children }) => {
         getRegionalPrice,
         shippingNotice: isUS
             ? 'Fast express courier to USA · Shipping calculated at checkout'
-            : 'Free shipping & taxes included across Europe',
+            : 'Free delivery to Australia, Austria, Germany, France, UK & Italy',
     };
 
     return (

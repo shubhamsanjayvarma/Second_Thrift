@@ -100,6 +100,21 @@ export const cancelOrderShipping = async (id, notes = '') => {
     });
 };
 
+export const updateOrderShippingFee = async (id, newShipping) => {
+    const docSnap = await getDoc(doc(db, 'orders', id));
+    if (!docSnap.exists()) throw new Error('Order not found');
+    const orderData = docSnap.data();
+    const subtotal = Number(orderData.subtotal || 0);
+    const shipping = Math.max(0, Number(newShipping || 0));
+    const total = subtotal + shipping;
+    await updateDoc(doc(db, 'orders', id), {
+        shipping,
+        total,
+        updatedAt: serverTimestamp(),
+    });
+    return { shipping, total };
+};
+
 export const deleteOrder = async (id) => {
     await deleteDoc(doc(db, 'orders', id));
 };

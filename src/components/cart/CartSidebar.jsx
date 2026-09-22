@@ -92,7 +92,7 @@ const CartSidebar = () => {
                                     <p className="cart-shipping-note">
                                         {isUS
                                             ? '🇺🇸 USA express shipping added at checkout'
-                                            : '🇪🇺 Free shipping across Europe included'}
+                                            : 'Free delivery for AU, AT, DE, FR, UK & IT (shipping calculated at checkout)'}
                                     </p>
                                     <Link
                                         to="/checkout"

@@ -532,7 +532,7 @@ const ProductDetail = () => {
                         )}
 
                         <div className="product-trust">
-                            <div><FiTruck /> {isUS ? 'Express courier to USA (tracked · shipping calculated at checkout)' : 'Shipping & delivery across Europe (Included)'}</div>
+                            <div><FiTruck /> {isUS ? 'Express courier to USA (tracked · shipping calculated at checkout)' : 'Free delivery to Australia, Austria, Germany, France, UK & Italy (calculated at checkout)'}</div>
                             <div><FiShield /> Quality checked before shipping</div>
                             <div><FiRefreshCw /> Easy returns within 15 days</div>
                         </div>
