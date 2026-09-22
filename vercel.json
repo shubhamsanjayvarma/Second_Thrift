@@ -53,7 +53,7 @@
             ]
         },
         {
-            "source": "/(.*)\\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2)",
+            "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|ico|woff2)",
             "headers": [
                 {
                     "key": "Cache-Control",
@@ -62,11 +62,11 @@
             ]
         },
         {
-            "source": "/",
+            "source": "/((?!api/|assets/).*)",
             "headers": [
                 {
                     "key": "Cache-Control",
-                    "value": "no-cache"
+                    "value": "no-cache, no-store, must-revalidate"
                 }
             ]
         }
