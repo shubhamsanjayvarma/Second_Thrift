@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShoppingBag, FiHeart, FiMinus, FiPlus, FiChevronRight, FiChevronLeft, FiTruck, FiShield, FiZap, FiRefreshCw, FiShare2, FiTag } from 'react-icons/fi';
+import { FiShoppingBag, FiHeart, FiMinus, FiPlus, FiChevronRight, FiChevronLeft, FiTruck, FiShield, FiZap, FiRefreshCw, FiShare2, FiTag, FiArrowRight } from 'react-icons/fi';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { useRegion } from '../context/RegionContext';
 import { useToast } from '../components/common/Toast';
 import { formatPrice, SIZES, COLORS } from '../utils/helpers';
-import { getProductById } from '../services/products';
+import { getProductById, getAllProducts } from '../services/products';
+import ProductCard from '../components/product/ProductCard';
 import SmartMedia from '../components/common/SmartMedia';
 import { isVideoUrl, isYouTubeUrl } from '../utils/helpers';
 import { useSEO, JsonLd, productSchema, breadcrumbSchema } from '../utils/seo';
@@ -30,6 +31,8 @@ const ProductDetail = () => {
     const [quantity, setQuantity] = useState(1);
     const [selectedImage, setSelectedImage] = useState(0);
     const [slideDirection, setSlideDirection] = useState(1); // 1 = right, -1 = left
+    const [relatedProducts, setRelatedProducts] = useState([]);
+    const [loadingRelated, setLoadingRelated] = useState(true);
 
     useSEO({
         title: product ? `${product.name} — ${product.brand || 'Second Thrift'}` : 'Loading...',
@@ -40,6 +43,7 @@ const ProductDetail = () => {
     });
 
     useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         const fetchProduct = async () => {
             setLoading(true);
             setError(null);
@@ -60,6 +64,73 @@ const ProductDetail = () => {
         };
         fetchProduct();
     }, [id]);
+
+    // Intelligent Related Products matching
+    useEffect(() => {
+        if (!product) return;
+
+        let isMounted = true;
+        const fetchRelated = async () => {
+            setLoadingRelated(true);
+            try {
+                const all = await getAllProducts();
+                if (!isMounted) return;
+
+                // Candidate pool excluding active product
+                const candidates = all.filter(p => p.id !== product.id);
+
+                const currentName = (product.name || '').toLowerCase();
+                const currentCat = (product.category || '').toLowerCase();
+                const currentBrand = (product.brand || '').toLowerCase();
+                const isDenimOrJeans = currentCat.includes('jean') || currentName.includes('jean') || currentCat.includes('denim');
+                const isBundle = currentName.includes('bundle') || currentName.includes('mix') || (product.tags || []).some(t => String(t).toLowerCase().includes('bundle'));
+
+                // Relevance scoring system
+                const scored = candidates.map(item => {
+                    let score = 0;
+                    const itemName = (item.name || '').toLowerCase();
+                    const itemCat = (item.category || '').toLowerCase();
+                    const itemBrand = (item.brand || '').toLowerCase();
+                    const itemIsBundle = itemName.includes('bundle') || itemName.includes('mix') || (item.tags || []).some(t => String(t).toLowerCase().includes('bundle'));
+                    const itemIsDenim = itemCat.includes('jean') || itemName.includes('jean') || itemCat.includes('denim');
+
+                    // Exact category match gets top score
+                    if (itemCat && itemCat === currentCat) score += 10;
+
+                    // Denim / Jeans family matching
+                    if (isDenimOrJeans && itemIsDenim) score += 7;
+
+                    // Bundle with bundle matching
+                    if (isBundle && itemIsBundle) score += 6;
+
+                    // Brand matching
+                    if (currentBrand && itemBrand && itemBrand !== 'other' && itemBrand === currentBrand) score += 5;
+
+                    // In-stock preference
+                    if ((item.stock || 0) > 0) score += 2;
+
+                    // Featured items slight boost
+                    if (item.featured) score += 1;
+
+                    return { item, score };
+                });
+
+                // Sort descending by relevance score
+                scored.sort((a, b) => b.score - a.score);
+
+                // Top 8 related items
+                const topRelated = scored.slice(0, 8).map(s => s.item);
+                setRelatedProducts(topRelated);
+            } catch (err) {
+                console.error('Failed to load related products:', err);
+            } finally {
+                if (isMounted) setLoadingRelated(false);
+            }
+        };
+
+        fetchRelated();
+        return () => { isMounted = false; };
+    }, [product]);
 
     const handleAddToCart = () => {
         if (!product) return;
@@ -467,6 +538,48 @@ const ProductDetail = () => {
                         </div>
                     </motion.div>
                 </div>
+
+                {/* Related Products Section */}
+                <section className="related-products-section">
+                    <div className="related-section-header">
+                        <div className="related-badge">
+                            <span>CURATED PICKS</span>
+                        </div>
+                        <h2 className="related-heading">
+                            RELATED <span className="gold-accent">PRODUCTS</span>
+                        </h2>
+                        <p className="related-subtitle">
+                            {((product.category || '').toLowerCase().includes('jean') || (product.name || '').toLowerCase().includes('jean') || (product.category || '').toLowerCase().includes('denim'))
+                                ? 'More curated vintage denim, designer jeans & bulk bundles from Second Thrift'
+                                : `More curated streetwear & premium vintage pieces from ${categoryName}`}
+                        </p>
+                    </div>
+
+                    {loadingRelated ? (
+                        <div className="related-products-grid">
+                            {[1, 2, 3, 4].map(n => (
+                                <div key={n} className="product-skeleton" style={{ height: 380, borderRadius: 16 }} />
+                            ))}
+                        </div>
+                    ) : relatedProducts.length > 0 ? (
+                        <>
+                            <div className="related-products-grid">
+                                {relatedProducts.map((relProduct, idx) => (
+                                    <ProductCard key={relProduct.id} product={relProduct} index={idx} />
+                                ))}
+                            </div>
+                            <div className="related-footer-cta">
+                                <Link
+                                    to={product.category ? `/shop?category=${product.category}` : '/shop'}
+                                    className="btn btn-outline related-explore-btn"
+                                >
+                                    <span>Explore All {product.category ? categoryName : 'Products'}</span>
+                                    <FiArrowRight size={16} />
+                                </Link>
+                            </div>
+                        </>
+                    ) : null}
+                </section>
             </div>
         </div >
     );

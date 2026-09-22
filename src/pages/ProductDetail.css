@@ -800,3 +800,148 @@
         height: 48px;
     }
 }
+
+/* ===== RELATED PRODUCTS SECTION ===== */
+.related-products-section {
+    margin-top: 3.5rem;
+    padding-top: 3.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 6rem;
+}
+
+.related-section-header {
+    text-align: center;
+    margin-bottom: 2.75rem;
+}
+
+.related-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #fcc419;
+    background: rgba(252, 196, 25, 0.08);
+    border: 1px solid rgba(252, 196, 25, 0.25);
+    padding: 4px 14px;
+    border-radius: 999px;
+    margin-bottom: 0.75rem;
+}
+
+.related-heading {
+    font-family: 'Oswald', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin: 0 0 0.5rem 0;
+}
+
+.related-heading .gold-accent {
+    color: #fcc419;
+}
+
+.related-subtitle {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5);
+    max-width: 580px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
+.related-products-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.related-footer-cta {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1.5rem;
+}
+
+.related-explore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 2.25rem;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.95rem;
+    border: 1px solid rgba(252, 196, 25, 0.45);
+    color: #fcc419;
+    background: rgba(252, 196, 25, 0.04);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.related-explore-btn:hover {
+    background: #fcc419;
+    color: #0a0a0f;
+    border-color: #fcc419;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(252, 196, 25, 0.25);
+}
+
+.related-explore-btn svg {
+    transition: transform 0.25s ease;
+}
+
+.related-explore-btn:hover svg {
+    transform: translateX(4px);
+}
+
+@media (max-width: 1024px) {
+    .related-products-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .related-products-section {
+        margin-top: 2rem;
+        padding-top: 2.5rem;
+        padding-bottom: 7.5rem; /* space above sticky mobile action bar */
+    }
+
+    .related-heading {
+        font-size: 1.75rem;
+    }
+
+    .related-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .related-subtitle {
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .related-products-grid {
+        gap: 0.75rem;
+    }
+
+    .related-heading {
+        font-size: 1.45rem;
+    }
+
+    .related-explore-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+    }
+}
