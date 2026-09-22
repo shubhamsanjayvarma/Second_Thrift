@@ -3,7 +3,7 @@ import { useCart } from '../../context/CartContext';
 import { useRegion } from '../../context/RegionContext';
 import { Link } from 'react-router-dom';
 import { FiX, FiMinus, FiPlus, FiTrash2, FiShoppingBag } from 'react-icons/fi';
-import { formatPrice } from '../../utils/helpers';
+import { formatPrice, getProductUnitPricing } from '../../utils/helpers';
 import './CartSidebar.css';
 
 const CartSidebar = () => {
@@ -64,7 +64,18 @@ const CartSidebar = () => {
                                             <div className="cart-item-info">
                                                 <h4>{item.name}</h4>
                                                 <span className="cart-item-size">Size: {item.size}</span>
-                                                <span className="cart-item-price">{formatPrice(item.price)}</span>
+                                                <span className="cart-item-price">
+                                                    {formatPrice(item.price)}
+                                                    {(() => {
+                                                        const up = getProductUnitPricing(item, item.price);
+                                                        if (!up) return null;
+                                                        return (
+                                                            <span style={{ fontSize: '0.72rem', color: '#fcc419', marginLeft: '6px', fontWeight: 500 }}>
+                                                                ({up.unitPriceFormatted}/pc)
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </span>
                                             </div>
                                             <div className="cart-item-actions">
                                                 <div className="cart-quantity">

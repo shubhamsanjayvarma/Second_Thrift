@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiChevronLeft, FiChevronRight, FiTag, FiStar, FiPackage, FiTarget, FiTruck, FiGlobe } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
-import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, GRADES, WAIST_SIZES, CURRENCIES, isYouTubeUrl, isVideoUrl } from '../../utils/helpers';
+import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, GRADES, WAIST_SIZES, CURRENCIES, isYouTubeUrl, isVideoUrl, getProductPieceCount } from '../../utils/helpers';
 import { defaultCategories } from '../../services/categories';
 import { subscribeToAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/products';
 import { uploadProductMedia } from '../../services/storage';
@@ -14,6 +14,7 @@ const STEP_LABELS = ['Type', 'Details', 'Pricing', 'Media', 'Publish'];
 const EMPTY_FORM = {
     name: '', description: '', brand: '', sku: '',
     price: '', comparePrice: '', stock: '', lowStockAlert: '3',
+    piecesCount: '', // Pack/bundle pieces count (e.g. 35 for 35x jeans)
     category: 'jeans', subcategory: '', condition: 'good', gender: 'unisex', season: 'all-season',
     sizes: [], colors: [], materials: [],
     tags: [], featured: false, visibility: 'active',
@@ -92,6 +93,7 @@ const AdminProducts = () => {
             comparePrice: String(product.comparePrice || ''),
             stock: String(product.stock || ''),
             lowStockAlert: String(product.lowStockAlert || '3'),
+            piecesCount: product.piecesCount !== undefined && product.piecesCount !== null ? String(product.piecesCount) : '',
             minQty: String(product.minQty || '1'),
             weight: String(product.weight || ''),
             shippingType: product.shippingType === 'free' || product.isFreeShipping ? 'free' : 'custom',
@@ -118,14 +120,22 @@ const AdminProducts = () => {
         setSaving(true);
         try {
             toast.success('Saving product media...');
-            const images = await Promise.all(mediaItems.map(async (item) => {
-                if (item.type === 'file') return await uploadProductMedia(item.value);
-                return item.value;
-            }));
+            const uploadedUrls = await Promise.all(
+                mediaItems.map(async (item, index) => {
+                    if (item.type === 'file') {
+                        return await uploadProductMedia(item.file, form.name || 'product', index);
+                    }
+                    return item.value;
+                })
+            );
+            const images = uploadedUrls.filter(Boolean);
+
             const stockValue = parseInt(form.stock);
             const lowStockValue = parseInt(form.lowStockAlert);
             const minQtyValue = parseInt(form.minQty);
             const weightValue = parseFloat(form.weight);
+            const piecesCountValue = form.piecesCount ? parseInt(form.piecesCount, 10) : null;
+            const autoDetectedPieces = getProductPieceCount(form);
 
             const shippingPriceEuropeVal = form.shippingPriceEurope !== '' && !isNaN(parseFloat(form.shippingPriceEurope)) ? parseFloat(form.shippingPriceEurope) : null;
             const shippingPriceUsaVal = form.shippingPriceUsa !== '' && !isNaN(parseFloat(form.shippingPriceUsa)) ? parseFloat(form.shippingPriceUsa) : null;
@@ -137,6 +147,7 @@ const AdminProducts = () => {
                 comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : null,
                 stock: isNaN(stockValue) ? 0 : stockValue,
                 lowStockAlert: isNaN(lowStockValue) ? 3 : lowStockValue,
+                piecesCount: !isNaN(piecesCountValue) && piecesCountValue > 1 ? piecesCountValue : (autoDetectedPieces || null),
                 minQty: isNaN(minQtyValue) ? 1 : minQtyValue,
                 weight: isNaN(weightValue) ? null : weightValue,
                 shippingType: form.shippingType || 'default',
@@ -260,7 +271,15 @@ const AdminProducts = () => {
         </div>
     );
 
-    const renderStep2 = () => (
+    const renderStep2 = () => {
+        const autoDetectedPieces = getProductPieceCount(form);
+        const effectivePieces = form.piecesCount ? parseInt(form.piecesCount, 10) : autoDetectedPieces;
+        const basePriceVal = parseFloat(form.price);
+        const calculatedUnitPrice = effectivePieces > 1 && !isNaN(basePriceVal) && basePriceVal > 0 
+            ? (basePriceVal / effectivePieces).toFixed(2) 
+            : null;
+
+        return (
         <div className="wiz-step-content">
             <h3 className="wiz-step-title">Inventory & Pricing</h3>
             <div className="ap-section">
@@ -272,6 +291,30 @@ const AdminProducts = () => {
                 <div className="wiz-pricing-header"><h3 className="ap-section-title">Add pricing</h3><select className="wiz-currency-select" value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol}</option>)}</select></div>
                 <div className="wiz-pricing-row"><span className="wiz-pricing-row-num">1</span><div className="wiz-pricing-field"><label>Minimum quantity</label><div className="wiz-input-suffix"><input type="number" min="1" value={form.minQty} onChange={e => setForm({ ...form, minQty: e.target.value })} placeholder="1" /><span className="wiz-suffix">pcs</span></div></div><div className="wiz-pricing-field"><label>Price</label><div className="wiz-input-prefix"><span className="wiz-prefix">{currencySymbol}</span><input type="number" step="0.01" min="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="0" /></div></div></div>
                 <div className="ap-field" style={{ marginTop: '8px' }}><label>Compare-at Price <span className="ap-hint">Original / crossed-out price</span></label><div className="wiz-input-prefix"><span className="wiz-prefix">{currencySymbol}</span><input type="number" step="0.01" min="0" value={form.comparePrice} onChange={e => setForm({ ...form, comparePrice: e.target.value })} placeholder="0" /></div></div>
+                
+                {/* Pack / Bundle Piece Count */}
+                <div className="ap-field" style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📦</span> Bundle / Pack Piece Count <span className="ap-hint">For bulk packs & jeans bundles</span>
+                    </label>
+                    <div className="wiz-input-suffix">
+                        <input
+                            type="number"
+                            min="1"
+                            value={form.piecesCount}
+                            onChange={e => setForm({ ...form, piecesCount: e.target.value })}
+                            placeholder={autoDetectedPieces ? `Auto-detected from name: ${autoDetectedPieces} pcs` : 'e.g. 35 (or auto-detected from name)'}
+                        />
+                        <span className="wiz-suffix">pieces</span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: calculatedUnitPrice ? '#fcc419' : 'var(--text-muted)' }}>
+                        {calculatedUnitPrice ? (
+                            `✓ Active: Pack of ${effectivePieces} for ${currencySymbol}${basePriceVal.toFixed(2)} (${currencySymbol}${calculatedUnitPrice} / piece displayed to customers)`
+                        ) : (
+                            'Automatically calculates & displays per-piece unit price (e.g. "Pack of 35 for €1,050 (€30.00 / jeans)") to customers.'
+                        )}
+                    </span>
+                </div>
             </div>
             <div className="ap-section">
                 <h3 className="ap-section-title">Add pricing tiers</h3>
@@ -405,7 +448,8 @@ const AdminProducts = () => {
                 )}
             </div>
         </div>
-    );
+        );
+    };
 
     const renderStep3 = () => (
         <div className="wiz-step-content">

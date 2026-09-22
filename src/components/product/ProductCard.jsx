@@ -6,7 +6,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
 import { useRegion } from '../../context/RegionContext';
-import { formatPrice } from '../../utils/helpers';
+import { formatPrice, getProductUnitPricing } from '../../utils/helpers';
 import SmartMedia from '../common/SmartMedia';
 import './ProductCard.css';
 
@@ -89,8 +89,18 @@ const ProductCard = ({ product, index = 0 }) => {
                         {product.bulkPrices?.length > 0 && (
                             <span className="product-price-bulk">From {formatPrice(product.bulkPrices[0].price, product.currency)} in bulk</span>
                         )}
+                        {(() => {
+                            const unitPricing = getProductUnitPricing(product, product.price);
+                            if (!unitPricing) return null;
+                            return (
+                                <div className="product-card-unit-badge">
+                                    <span className="unit-badge-pill">Pack of {unitPricing.pieceCount}</span>
+                                    <span className="unit-badge-price">{unitPricing.unitPriceFormatted} / {unitPricing.unitLabel === 'jeans' || unitPricing.unitLabel === 'shorts' ? unitPricing.unitLabel : 'pc'}</span>
+                                </div>
+                            );
+                        })()}
                         {isUS && (
-                            <span style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(255, 255, 255, 0.55)', marginTop: '2px', fontWeight: 500 }}>
+                            <span style={{ display: 'block', width: '100%', fontSize: '0.72rem', color: 'rgba(255, 255, 255, 0.55)', marginTop: '2px', fontWeight: 500 }}>
                                 {getRegionalPrice(product.price).secondary}
                             </span>
                         )}

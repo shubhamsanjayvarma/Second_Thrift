@@ -167,6 +167,31 @@
     color: rgba(255, 255, 255, 0.35);
 }
 
+.product-card-unit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 4px;
+    padding: 2px 7px;
+    background: rgba(252, 196, 25, 0.08);
+    border: 1px solid rgba(252, 196, 25, 0.22);
+    border-radius: 5px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.72rem;
+    width: fit-content;
+}
+
+.unit-badge-pill {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+}
+
+.unit-badge-price {
+    color: #fcc419;
+    font-weight: 600;
+}
+
+
 .product-card-sizes {
     display: flex;
     gap: 0.25rem;

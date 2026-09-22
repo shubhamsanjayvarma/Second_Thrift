@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShoppingBag, FiHeart, FiMinus, FiPlus, FiChevronRight, FiChevronLeft, FiTruck, FiShield, FiZap, FiRefreshCw, FiShare2, FiTag, FiArrowRight } from 'react-icons/fi';
+import { FiShoppingBag, FiHeart, FiMinus, FiPlus, FiChevronRight, FiChevronLeft, FiTruck, FiShield, FiZap, FiRefreshCw, FiShare2, FiTag, FiArrowRight, FiPackage } from 'react-icons/fi';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { useRegion } from '../context/RegionContext';
 import { useToast } from '../components/common/Toast';
-import { formatPrice, SIZES, COLORS } from '../utils/helpers';
+import { formatPrice, SIZES, COLORS, getProductUnitPricing } from '../utils/helpers';
 import { getProductById, getAllProducts } from '../services/products';
 import ProductCard from '../components/product/ProductCard';
 import SmartMedia from '../components/common/SmartMedia';
@@ -223,6 +223,7 @@ const ProductDetail = () => {
     const categoryName = product.category?.charAt(0).toUpperCase() + product.category?.slice(1) || 'Products';
     const conditionLabel = product.condition === 'new' ? 'New' : product.condition === 'like-new' ? 'Like New' : product.condition === 'fair' ? 'Fair' : 'Good Condition';
     const conditionColor = product.condition === 'new' ? 'success' : product.condition === 'like-new' ? 'primary' : 'warning';
+    const unitPricing = getProductUnitPricing(product, currentPrice, quantity);
 
     return (
         <div className="product-detail-page">
@@ -376,6 +377,24 @@ const ProductDetail = () => {
                                     {getRegionalPrice(currentPrice).secondary}
                                 </span>
                             )}
+
+                            {/* Bundle Per-Piece / Unit Price Badge */}
+                            {unitPricing && (
+                                <div className="product-bundle-unit-box">
+                                    <div className="bundle-unit-badge-main">
+                                        <span className="bundle-unit-tag">
+                                            <FiPackage size={14} /> Pack of {unitPricing.pieceCount}
+                                        </span>
+                                        <span className="bundle-unit-divider">•</span>
+                                        <span className="bundle-unit-price-highlight">
+                                            Just <span className="unit-price-number">{unitPricing.unitPriceFormatted}</span> / {unitPricing.unitLabel}
+                                        </span>
+                                    </div>
+                                    <div className="bundle-unit-subtext">
+                                        Wholesale rate: {unitPricing.unitPriceFormatted} per item ({unitPricing.pieceCount} {unitPricing.unitLabel === 'jeans' || unitPricing.unitLabel === 'shorts' ? unitPricing.unitLabel : 'pieces'} included in this bundle)
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* SKU */}
@@ -478,7 +497,14 @@ const ProductDetail = () => {
                                 <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} min="1" max={product.stock || 999} />
                                 <button onClick={() => setQuantity(Math.min(product.stock || 999, quantity + 1))}><FiPlus /></button>
                             </div>
-                            <span className="quantity-total">Total: {formatPrice(currentPrice * quantity, product.currency)}</span>
+                            <span className="quantity-total">
+                                Total: {formatPrice(currentPrice * quantity, product.currency)}
+                                {unitPricing && (
+                                    <span className="bundle-quantity-breakdown">
+                                        {' '}({unitPricing.totalPieces} {unitPricing.unitLabel} • {unitPricing.unitPriceFormatted} / {unitPricing.unitLabel === 'jeans' || unitPricing.unitLabel === 'shorts' ? unitPricing.unitLabel : 'pc'})
+                                    </span>
+                                )}
+                            </span>
                         </div>
 
                         {/* Actions */}
@@ -504,6 +530,9 @@ const ProductDetail = () => {
                             <div className="product-actions-sticky">
                                 <div className="sticky-mobile-info">
                                     <span className="sticky-price">{formatPrice(currentPrice * quantity, product.currency)}</span>
+                                    {unitPricing && (
+                                        <span className="sticky-unit-price">({unitPricing.unitPriceFormatted}/{unitPricing.unitLabel === 'jeans' ? 'jeans' : 'pc'})</span>
+                                    )}
                                     {product.stock > 0 ? (
                                         <span className="sticky-stock in-stock">In Stock</span>
                                     ) : (

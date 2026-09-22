@@ -52,6 +52,100 @@ export const getBulkPrice = (product, quantity) => {
     return applicable ? applicable.price : product.price;
 };
 
+/**
+ * Extract or read bundle piece count from product data or name/description
+ * @param {Object} product
+ * @returns {number|null} Piece count if bundle (> 1), otherwise null
+ */
+export const getProductPieceCount = (product) => {
+    if (!product) return null;
+
+    // 1. Explicit admin field
+    if (product.piecesCount && parseInt(product.piecesCount, 10) > 1) {
+        return parseInt(product.piecesCount, 10);
+    }
+    if (product.bundlePieces && parseInt(product.bundlePieces, 10) > 1) {
+        return parseInt(product.bundlePieces, 10);
+    }
+    if (product.packQty && parseInt(product.packQty, 10) > 1) {
+        return parseInt(product.packQty, 10);
+    }
+
+    // 2. Intelligent parser from product name & description
+    const text = `${product.name || ''} ${product.description || ''}`.toLowerCase();
+
+    // 2a. Pack of X, lot of X, bundle of X, set of X
+    const packMatch = text.match(/(?:pack|lot|bundle|set)\s+of\s+(\d+)\b/i);
+    if (packMatch) {
+        const v = parseInt(packMatch[1], 10);
+        if (v > 1 && v <= 5000) return v;
+    }
+
+    // 2b. X pcs, X pieces, X units, X items
+    const pcsMatch = text.match(/\b(\d+)\s*(?:pcs|pieces|piece|units|items)\b/i);
+    if (pcsMatch) {
+        const v = parseInt(pcsMatch[1], 10);
+        if (v > 1 && v <= 5000) return v;
+    }
+
+    // 2c. X jeans / X shorts / X pants / X sweaters / X hoodies
+    const clothesMatch = text.match(/\b(\d+)\s*(?:jeans|shorts|pants|sweaters?|hoodies?|tees?|t-shirts?)\b/i);
+    if (clothesMatch) {
+        const v = parseInt(clothesMatch[1], 10);
+        if (v > 1 && v <= 5000) return v;
+    }
+
+    // 2d. (\d+)x not followed by digits (prevents waist/length sizes like 32x34)
+    const xMatch = text.match(/\b(\d+)\s*x(?!\s*\d)/i);
+    if (xMatch) {
+        const v = parseInt(xMatch[1], 10);
+        if (v > 1 && v <= 5000) return v;
+    }
+
+    return null;
+};
+
+/**
+ * Determine unit label (jeans, shorts, sweater, piece) for a product
+ */
+export const getPieceUnitLabel = (product) => {
+    if (!product) return 'piece';
+    const text = `${product.name || ''} ${product.category || ''} ${product.subcategory || ''}`.toLowerCase();
+    if (text.includes('jeans')) return 'jeans';
+    if (text.includes('shorts')) return 'shorts';
+    if (text.includes('sweater')) return 'sweater';
+    if (text.includes('hoodie')) return 'hoodie';
+    if (text.includes('tee') || text.includes('shirt')) return 'shirt';
+    return 'piece';
+};
+
+/**
+ * Compute comprehensive unit pricing details for bundle products
+ */
+export const getProductUnitPricing = (product, activePrice, qty = 1) => {
+    const pieceCount = getProductPieceCount(product);
+    if (!pieceCount || pieceCount <= 1) return null;
+
+    const basePrice = activePrice !== undefined && activePrice !== null ? activePrice : product?.price;
+    if (!basePrice || isNaN(basePrice)) return null;
+
+    const unitPrice = basePrice / pieceCount;
+    const unitLabel = getPieceUnitLabel(product);
+    const totalPieces = pieceCount * (qty || 1);
+
+    return {
+        pieceCount,
+        unitPrice,
+        unitPriceFormatted: formatPrice(unitPrice, product?.currency),
+        unitLabel,
+        totalPieces,
+        packLabel: `Pack of ${pieceCount}`,
+        summaryText: `Pack of ${pieceCount} for ${formatPrice(basePrice, product?.currency)} (Just ${formatPrice(unitPrice, product?.currency)} / ${unitLabel})`,
+        shortBadgeText: `${formatPrice(unitPrice, product?.currency)} / ${unitLabel === 'jeans' || unitLabel === 'shorts' ? unitLabel : 'pc'}`,
+    };
+};
+
+
 export const DEFAULT_USA_WEIGHT_TIERS = [
     { maxWeight: 2, rate: 20.00, label: 'Up to 2 KG' },
     { maxWeight: 5, rate: 35.00, label: 'Up to 5 KG' },

@@ -172,6 +172,82 @@
     text-decoration: line-through;
 }
 
+/* ── Bundle / Pack Unit Price Badge ── */
+.product-bundle-unit-box {
+    width: 100%;
+    margin-top: 0.65rem;
+    padding: 0.85rem 1.15rem;
+    background: linear-gradient(135deg, rgba(252, 196, 25, 0.08) 0%, rgba(252, 196, 25, 0.02) 100%);
+    border: 1px solid rgba(252, 196, 25, 0.28);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.bundle-unit-badge-main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.95rem;
+}
+
+.bundle-unit-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(252, 196, 25, 0.15);
+    color: #fcc419;
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.bundle-unit-divider {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.85rem;
+}
+
+.bundle-unit-price-highlight {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+}
+
+.bundle-unit-price-highlight .unit-price-number {
+    color: #fcc419;
+    font-weight: 700;
+    font-size: 1.15rem;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 0.02em;
+}
+
+.bundle-unit-subtext {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.4;
+}
+
+.bundle-quantity-breakdown {
+    color: #fcc419;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.sticky-unit-price {
+    font-size: 0.78rem;
+    color: #fcc419;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+
 .product-description {
     font-family: 'Poppins', sans-serif;
     color: rgba(255, 255, 255, 0.5);
