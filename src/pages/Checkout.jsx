@@ -69,6 +69,17 @@ const Checkout = () => {
                             } catch (updateErr) {
                                 console.error('Failed to update order status in Firestore:', updateErr);
                             }
+
+                            // Trigger Order Confirmation Email to Customer
+                            try {
+                                fetch(`${apiUrl}/api/send-order-email`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ orderId: data.orderId }),
+                                }).catch(err => console.warn('Order email trigger notice:', err.message));
+                            } catch (emailErr) {
+                                console.warn('Failed to call send-order-email:', emailErr.message);
+                            }
                         }
 
                         setOrderItems([]);
@@ -200,6 +211,8 @@ const Checkout = () => {
                     shipping,
                     shippingCountry: address.country,
                     shippingLabel,
+                    shippingAddress: address,
+                    subtotal,
                     total: paymentTotal,
                     currency: paymentCurrency,
                     customerEmail: user.email,

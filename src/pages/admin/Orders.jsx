@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiEye, FiTruck, FiCheckCircle, FiPhone, FiRefreshCw, FiTrash2, FiFileText, FiXCircle, FiActivity } from 'react-icons/fi';
+import { FiEye, FiTruck, FiCheckCircle, FiPhone, FiRefreshCw, FiTrash2, FiFileText, FiXCircle, FiActivity, FiMail } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useToast } from '../../components/common/Toast';
 import { formatPrice, ORDER_STATUSES } from '../../utils/helpers';
@@ -393,6 +393,40 @@ const AdminOrders = () => {
                                     <FiRefreshCw size={12} /> Sync Status
                                 </button>
                             )}
+                            <button
+                                className="btn btn-ghost btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', height: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--primary)' }}
+                                onClick={async () => {
+                                    try {
+                                        toast.loading(`Sending confirmation email to ${selectedOrder.userEmail}...`, { id: 'admin-resend-email' });
+                                        const apiUrl = import.meta.env.VITE_API_URL || '';
+                                        const res = await fetch(`${apiUrl}/api/send-order-email`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                orderId: selectedOrder.id,
+                                                orderData: selectedOrder,
+                                                resend: true,
+                                            }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            if (data.simulated) {
+                                                toast.info(`Simulated: ${data.message}`, { id: 'admin-resend-email', duration: 5000 });
+                                            } else {
+                                                toast.success(`Confirmation email sent to ${selectedOrder.userEmail}!`, { id: 'admin-resend-email' });
+                                            }
+                                        } else {
+                                            toast.error(`Failed to send email: ${data.error || 'Check SMTP configuration'}`, { id: 'admin-resend-email', duration: 5000 });
+                                        }
+                                    } catch (err) {
+                                        console.error('Resend email error:', err);
+                                        toast.error(err.message || 'Failed to resend confirmation email.', { id: 'admin-resend-email' });
+                                    }
+                                }}
+                            >
+                                <FiMail size={12} /> Resend Email
+                            </button>
                         </div>
 
                         <div className="order-detail-grid">

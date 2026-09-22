@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiSearch, FiEdit2, FiCheck, FiTrash2, FiPlus, FiRotateCcw, FiGlobe, FiPackage, FiMapPin, FiX } from 'react-icons/fi';
+import { FiSearch, FiEdit2, FiCheck, FiTrash2, FiPlus, FiRotateCcw, FiGlobe, FiPackage, FiMapPin, FiX, FiMail, FiSend } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
 import { getSettings, updateSettings, getDefaultSettings, DEFAULT_USA_WEIGHT_TIERS, DEFAULT_EXCESS_PER_KG_RATE } from '../../services/settings';
 import { ALL_COUNTRIES } from '../../utils/helpers';
@@ -17,6 +17,8 @@ const AdminSettings = () => {
     const [newCountryName, setNewCountryName] = useState('');
     const [newCountryRate, setNewCountryRate] = useState('10.00');
     const [newCountryFree, setNewCountryFree] = useState('150');
+    const [sendingTestEmail, setSendingTestEmail] = useState(false);
+    const [testEmailRecipient, setTestEmailRecipient] = useState('');
     const toast = useToast();
 
     // Load settings from Firebase on mount
@@ -53,6 +55,48 @@ const AdminSettings = () => {
 
     const updateField = (field, value) => {
         setSettings(prev => ({ ...prev, [field]: value }));
+    };
+
+    const updateEmailNotification = (field, value) => {
+        setSettings(prev => ({
+            ...prev,
+            emailNotifications: {
+                ...(prev.emailNotifications || {}),
+                [field]: value,
+            },
+        }));
+    };
+
+    const handleSendTestEmail = async () => {
+        const targetEmail = testEmailRecipient.trim() || settings?.emailNotifications?.adminNotificationEmail || settings?.emailNotifications?.senderEmail || 'secondthriftt39@gmail.com';
+        setSendingTestEmail(true);
+        try {
+            toast.loading(`Sending test email to ${targetEmail}...`, { id: 'test-email-toast' });
+            const apiUrl = import.meta.env.VITE_API_URL || '';
+            const res = await fetch(`${apiUrl}/api/test-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    targetEmail,
+                    smtpSettings: settings?.emailNotifications || {},
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (data.simulated) {
+                    toast.info(`Email simulated: ${data.message} (Add 16-char Google App Password to send real Gmails)`, { id: 'test-email-toast', duration: 6000 });
+                } else {
+                    toast.success(`Test email successfully delivered to ${targetEmail}!`, { id: 'test-email-toast' });
+                }
+            } else {
+                toast.error(`Email delivery failed: ${data.error || 'Check SMTP credentials'}`, { id: 'test-email-toast', duration: 6000 });
+            }
+        } catch (err) {
+            console.error('Test email error:', err);
+            toast.error(`Error: ${err.message}`, { id: 'test-email-toast' });
+        } finally {
+            setSendingTestEmail(false);
+        }
     };
 
     const updateSocial = (field, value) => {
@@ -691,6 +735,111 @@ const AdminSettings = () => {
                         </label>
                     </div>
                 )}
+            </div>
+
+            <div className="settings-section">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ margin: 0 }}>📧 Customer Order Email Notifications & Invoices</h3>
+                    <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: settings.emailNotifications?.enabled !== false ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: settings.emailNotifications?.enabled !== false ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+                        {settings.emailNotifications?.enabled !== false ? '● ACTIVE' : '○ DISABLED'}
+                    </span>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 16px 0' }}>
+                    Configure automatic email notifications sent to customers upon order placement with invoice details and order summary.
+                </p>
+
+                <div className="settings-form">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+                        <label style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', margin: 0 }}>
+                            <input
+                                type="checkbox"
+                                checked={settings.emailNotifications?.enabled !== false}
+                                onChange={e => updateEmailNotification('enabled', e.target.checked)}
+                                style={{ width: 'auto' }}
+                            />
+                            <span>Enable Order Confirmation Emails</span>
+                        </label>
+
+                        <label style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', margin: 0 }}>
+                            <input
+                                type="checkbox"
+                                checked={settings.emailNotifications?.notifyAdmin !== false}
+                                onChange={e => updateEmailNotification('notifyAdmin', e.target.checked)}
+                                style={{ width: 'auto' }}
+                            />
+                            <span>Send copy of new orders to Admin</span>
+                        </label>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                        <label>
+                            Sender Display Name
+                            <input
+                                value={settings.emailNotifications?.senderName || 'Second Thrift'}
+                                onChange={e => updateEmailNotification('senderName', e.target.value)}
+                                placeholder="Second Thrift"
+                            />
+                        </label>
+
+                        <label>
+                            Sender Email (From)
+                            <input
+                                value={settings.emailNotifications?.senderEmail || 'secondthriftt39@gmail.com'}
+                                onChange={e => updateEmailNotification('senderEmail', e.target.value)}
+                                placeholder="secondthriftt39@gmail.com"
+                            />
+                        </label>
+
+                        <label>
+                            Admin Notification Email
+                            <input
+                                value={settings.emailNotifications?.adminNotificationEmail || 'secondthriftt39@gmail.com'}
+                                onChange={e => updateEmailNotification('adminNotificationEmail', e.target.value)}
+                                placeholder="secondthriftt39@gmail.com"
+                            />
+                        </label>
+
+                        <label>
+                            Gmail App Password / SMTP Password
+                            <input
+                                type="password"
+                                value={settings.emailNotifications?.smtpPass || ''}
+                                onChange={e => updateEmailNotification('smtpPass', e.target.value)}
+                                placeholder="e.g. abcd efgh ijkl mnop"
+                            />
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                💡 16-character Google App Password (from Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords)
+                            </span>
+                        </label>
+                    </div>
+
+                    <div style={{ marginTop: '16px', padding: '14px', background: 'rgba(252, 196, 25, 0.04)', border: '1px solid rgba(252, 196, 25, 0.2)', borderRadius: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <FiSend size={15} color="var(--primary)" />
+                            <strong style={{ fontSize: '0.88rem', color: '#fff' }}>Test Email Delivery</strong>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                            Send a test order confirmation email to verify your Gmail SMTP connection immediately.
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input
+                                type="email"
+                                style={{ flex: 1, minWidth: '220px', maxWidth: '360px', margin: 0 }}
+                                placeholder="Recipient email (defaults to admin)"
+                                value={testEmailRecipient}
+                                onChange={e => setTestEmailRecipient(e.target.value)}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={handleSendTestEmail}
+                                disabled={sendingTestEmail}
+                            >
+                                {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="settings-section">

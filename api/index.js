@@ -6,6 +6,7 @@ import multer from 'multer';
 import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import Stripe from 'stripe';
+import nodemailer from 'nodemailer';
 
 const app = express();
 
@@ -136,8 +137,31 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
                     { upsert: true }
                 );
                 console.log(`✅ Stripe webhook: Payment confirmed for order ${orderId}`);
+
+                // Send email notification to customer & admin if not already sent
+                const conf = await db.collection('payment_confirmations').findOne({ orderId });
+                if (!conf?.emailSent) {
+                    const record = await db.collection('orders_metadata').findOne({ orderId });
+                    const emailTarget = {
+                        orderId,
+                        items: record?.items || [],
+                        total: record?.total || (session.amount_total ? session.amount_total / 100 : 0),
+                        subtotal: record?.subtotal || record?.total || (session.amount_total ? session.amount_total / 100 : 0),
+                        shipping: record?.shipping || 0,
+                        shippingLabel: record?.shippingLabel || 'Europe (Free / Included)',
+                        shippingAddress: record?.shippingAddress || {},
+                        userEmail: record?.customerEmail || session.customer_details?.email,
+                    };
+                    const emailRes = await sendOrderConfirmationEmail(emailTarget);
+                    if (emailRes.success) {
+                        await db.collection('payment_confirmations').updateOne(
+                            { orderId },
+                            { $set: { emailSent: true, emailSentAt: new Date() } }
+                        );
+                    }
+                }
             } catch (err) {
-                console.error('Stripe webhook: Failed to store payment confirmation:', err);
+                console.error('Stripe webhook: Failed to store payment confirmation or send email:', err);
             }
         }
     }
@@ -282,6 +306,289 @@ async function connectDB() {
     console.log('✅ Connected to MongoDB Atlas');
     return { db: cachedDb, bucket: cachedBucket };
 }
+
+// ============ EMAIL NOTIFICATION SYSTEM ============
+const formatEur = (val) => `€${Number(val || 0).toFixed(2)}`;
+
+const buildOrderConfirmationHtml = (order) => {
+    const orderNum = (order.orderId || 'ORDER').replace(/^st_/i, '').toUpperCase().slice(0, 10);
+    const customerName = order.shippingAddress?.name || 'Customer';
+    const address = order.shippingAddress || {};
+    const items = Array.isArray(order.items) ? order.items : [];
+    const siteUrl = process.env.SITE_URL || 'https://www.secondthriftt.com';
+    const whatsappNum = process.env.VITE_OWNER_WHATSAPP || '+919909527515';
+    const contactEmail = process.env.VITE_ADMIN_EMAIL || 'secondthriftt39@gmail.com';
+
+    const itemsRows = items.map(item => `
+        <tr>
+            <td style="padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #ffffff; font-size: 14px;">
+                <div style="font-weight: 600;">${item.name || 'Vintage Item'}</div>
+                ${item.size ? `<div style="font-size: 12px; color: #a1a1aa; margin-top: 3px;">Size: ${item.size}</div>` : ''}
+            </td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: center; color: #e4e4e7; font-size: 14px;">
+                ${item.quantity || 1}
+            </td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: right; color: #ffffff; font-size: 14px; font-weight: 600;">
+                ${formatEur((item.price || 0) * (item.quantity || 1))}
+            </td>
+        </tr>
+    `).join('');
+
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation #${orderNum}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0c10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0c10; padding: 30px 10px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" max-width="600" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: #14161d; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #1f232e 0%, #14161d 100%); padding: 28px 30px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                            <div style="font-size: 24px; font-weight: 800; letter-spacing: 0.12em; color: #fcc419; text-transform: uppercase;">
+                                SECOND THRIFT
+                            </div>
+                            <div style="font-size: 11px; letter-spacing: 0.18em; color: #a1a1aa; text-transform: uppercase; margin-top: 4px;">
+                                Premium Vintage & Designer Streetwear
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Status Banner -->
+                    <tr>
+                        <td style="padding: 24px 30px 10px 30px; text-align: center;">
+                            <div style="display: inline-block; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #10b981; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; padding: 6px 16px; border-radius: 20px; text-transform: uppercase;">
+                                ✓ Payment Received · Order Confirmed
+                            </div>
+                            <h1 style="font-size: 22px; font-weight: 700; margin: 16px 0 8px 0; color: #ffffff;">
+                                Thank You For Your Order!
+                            </h1>
+                            <p style="font-size: 14px; color: #a1a1aa; line-height: 1.5; margin: 0;">
+                                Hi <strong style="color: #ffffff;">${customerName}</strong>, we've received your order <strong style="color: #fcc419;">#${orderNum}</strong> and our team in India is curating and packing your vintage pieces for courier dispatch.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Order Info Box -->
+                    <tr>
+                        <td style="padding: 15px 30px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px;">
+                                <tr>
+                                    <td width="50%" style="font-size: 13px; color: #a1a1aa; vertical-align: top; padding: 4px;">
+                                        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; margin-bottom: 2px;">Order ID</div>
+                                        <div style="color: #ffffff; font-weight: 600;">#${orderNum}</div>
+                                    </td>
+                                    <td width="50%" style="font-size: 13px; color: #a1a1aa; vertical-align: top; padding: 4px;">
+                                        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; margin-bottom: 2px;">Payment Method</div>
+                                        <div style="color: #ffffff; font-weight: 600;">Stripe (Card / Apple Pay)</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Shipping Details -->
+                    <tr>
+                        <td style="padding: 10px 30px;">
+                            <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #fcc419; margin-bottom: 8px;">
+                                📍 Delivery Address
+                            </div>
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px; font-size: 13px; color: #d4d4d8; line-height: 1.6;">
+                                <div style="color: #ffffff; font-weight: 600;">${address.name || customerName}</div>
+                                <div>${address.street || ''}</div>
+                                <div>${address.city || ''}, ${address.postalCode || ''}</div>
+                                <div>${address.region ? address.region + ', ' : ''}${address.country || ''}</div>
+                                ${address.phone ? `<div style="color: #a1a1aa; margin-top: 4px; font-size: 12px;">📞 ${address.phone}</div>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Order Items -->
+                    <tr>
+                        <td style="padding: 15px 30px;">
+                            <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #fcc419; margin-bottom: 8px;">
+                                🛍️ Purchased Items
+                            </div>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.12);">
+                                        <th align="left" style="padding: 8px; font-size: 11px; text-transform: uppercase; color: #a1a1aa;">Product</th>
+                                        <th align="center" style="padding: 8px; font-size: 11px; text-transform: uppercase; color: #a1a1aa;">Qty</th>
+                                        <th align="right" style="padding: 8px; font-size: 11px; text-transform: uppercase; color: #a1a1aa;">Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsRows}
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Totals & Shipping Breakdown -->
+                    <tr>
+                        <td style="padding: 0 30px 20px 30px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: rgba(255,255,255,0.02); border-radius: 10px; padding: 14px;">
+                                <tr>
+                                    <td style="padding: 6px 0; font-size: 14px; color: #a1a1aa;">Subtotal:</td>
+                                    <td style="padding: 6px 0; font-size: 14px; color: #ffffff; text-align: right; font-weight: 500;">
+                                        ${formatEur(order.subtotal || order.total)}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 6px 0; font-size: 14px; color: #a1a1aa;">
+                                        Shipping (${order.shippingLabel || 'Standard Delivery'}):
+                                    </td>
+                                    <td style="padding: 6px 0; font-size: 14px; text-align: right; font-weight: 600; color: ${Number(order.shipping) === 0 ? '#10b981' : '#ffffff'};">
+                                        ${Number(order.shipping) === 0 ? 'FREE' : formatEur(order.shipping)}
+                                    </td>
+                                </tr>
+                                <tr style="border-top: 1px solid rgba(255,255,255,0.1);">
+                                    <td style="padding: 12px 0 4px 0; font-size: 16px; color: #ffffff; font-weight: 700;">
+                                        Total Paid:
+                                    </td>
+                                    <td style="padding: 12px 0 4px 0; font-size: 20px; color: #fcc419; text-align: right; font-weight: 800;">
+                                        ${formatEur(order.total)}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Action Button -->
+                    <tr>
+                        <td style="padding: 0 30px 24px 30px; text-align: center;">
+                            <a href="${siteUrl}/orders" target="_blank" style="display: inline-block; background-color: #fcc419; color: #000000; font-weight: 700; font-size: 14px; text-decoration: none; padding: 14px 28px; border-radius: 8px; letter-spacing: 0.04em;">
+                                View & Track Order
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Support Note -->
+                    <tr>
+                        <td style="padding: 16px 30px; background: rgba(252, 196, 25, 0.04); border-top: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 13px; color: #d4d4d8; line-height: 1.5;">
+                                Questions or need special packing instructions?
+                            </div>
+                            <div style="margin-top: 6px;">
+                                <a href="https://wa.me/${whatsappNum.replace(/[^0-9]/g, '')}" style="color: #25D366; font-size: 13px; font-weight: 600; text-decoration: none; margin-right: 15px;">
+                                    💬 WhatsApp Support
+                                </a>
+                                <a href="mailto:${contactEmail}" style="color: #fcc419; font-size: 13px; font-weight: 600; text-decoration: none;">
+                                    ✉️ ${contactEmail}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 30px; text-align: center; font-size: 11px; color: #71717a; border-top: 1px solid rgba(255,255,255,0.06);">
+                            <div style="margin-bottom: 6px;">
+                                🌿 Sustainable Fashion: Thank you for extending the lifecycle of premium vintage clothing.
+                            </div>
+                            <div>
+                                © ${new Date().getFullYear()} Second Thrift (SecondThriftt). All rights reserved.
+                            </div>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+    `;
+};
+
+const getSmtpConfig = (customSettings = {}) => {
+    const host = customSettings.smtpHost || process.env.SMTP_HOST || 'smtp.gmail.com';
+    const port = parseInt(customSettings.smtpPort || process.env.SMTP_PORT || '465', 10);
+    const secure = customSettings.smtpSecure !== undefined
+        ? Boolean(customSettings.smtpSecure)
+        : (process.env.SMTP_SECURE !== 'false' && process.env.SMTP_SECURE !== false);
+    const user = customSettings.smtpUser || process.env.SMTP_USER || process.env.GMAIL_USER || 'secondthriftt39@gmail.com';
+    const pass = customSettings.smtpPass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '';
+    const senderName = customSettings.senderName || 'Second Thrift';
+    const senderEmail = customSettings.senderEmail || user;
+    const from = customSettings.from || process.env.SMTP_FROM || `"${senderName}" <${senderEmail}>`;
+
+    return { host, port, secure, user, pass, from, senderEmail, senderName };
+};
+
+const createEmailTransporter = (customSettings = {}) => {
+    const config = getSmtpConfig(customSettings);
+    if (!config.pass) {
+        return null;
+    }
+    return {
+        transporter: nodemailer.createTransport({
+            host: config.host,
+            port: config.port,
+            secure: config.secure,
+            auth: {
+                user: config.user,
+                pass: config.pass,
+            },
+        }),
+        from: config.from,
+        user: config.user,
+        config,
+    };
+};
+
+const sendOrderConfirmationEmail = async (orderData, customSettings = {}, options = {}) => {
+    const recipient = orderData.userEmail || orderData.customerEmail || orderData.shippingAddress?.email;
+    if (!recipient) {
+        console.warn('⚠️ sendOrderConfirmationEmail: No recipient email found for order', orderData.orderId);
+        return { success: false, error: 'No recipient email found' };
+    }
+
+    const emailSetup = createEmailTransporter(customSettings);
+    const orderNum = (orderData.orderId || 'ORDER').replace(/^st_/i, '').toUpperCase().slice(0, 10);
+    const subject = options.isTest
+        ? `[TEST] Second Thrift Email Notification Service Test`
+        : `Order Confirmed: #${orderNum} - Second Thrift`;
+    const html = buildOrderConfirmationHtml(orderData);
+
+    if (!emailSetup) {
+        console.log(`ℹ️ [SIMULATED EMAIL] SMTP credentials not set. Simulated order confirmation email for ${recipient} (#${orderNum})`);
+        return {
+            success: true,
+            simulated: true,
+            recipient,
+            subject,
+            message: 'Email delivery simulated because SMTP password / App Password is not yet configured.'
+        };
+    }
+
+    const mailOptions = {
+        from: emailSetup.from,
+        to: recipient,
+        subject,
+        html,
+    };
+
+    const adminEmail = customSettings.adminNotificationEmail || process.env.VITE_ADMIN_EMAIL || 'secondthriftt39@gmail.com';
+    if (!options.isTest && adminEmail && adminEmail.toLowerCase() !== recipient.toLowerCase() && (customSettings.notifyAdmin !== false)) {
+        mailOptions.bcc = adminEmail;
+    }
+
+    try {
+        const info = await emailSetup.transporter.sendMail(mailOptions);
+        console.log(`📧 Order confirmation email delivered to ${recipient} (Message ID: ${info.messageId})`);
+        return { success: true, messageId: info.messageId, recipient };
+    } catch (err) {
+        console.error(`❌ Failed to send order email to ${recipient}:`, err.message);
+        return { success: false, error: err.message };
+    }
+};
 
 // ============ UPLOAD ============
 app.post('/api/upload', uploadLimiter, requireAdmin, upload.single('file'), async (req, res) => {
@@ -436,7 +743,7 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
             return res.status(500).json({ error: 'Stripe is not configured on the server' });
         }
 
-        const { orderId, items, total, currency = 'EUR', customerEmail, successUrl, cancelUrl, shipping = 0, shippingCountry = '', shippingLabel = '' } = req.body;
+        const { orderId, items, total, currency = 'EUR', customerEmail, successUrl, cancelUrl, shipping = 0, shippingCountry = '', shippingLabel = '', shippingAddress, subtotal } = req.body;
 
         if (!orderId || typeof orderId !== 'string') {
             return res.status(400).json({ error: 'Missing or invalid orderId' });
@@ -451,6 +758,33 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
 
         if (!/^[a-z]{3}$/.test(currencyCode)) {
             return res.status(400).json({ error: 'Invalid currency code' });
+        }
+
+        // Cache order metadata in MongoDB for email generation & confirmation
+        try {
+            const { db } = await connectDB();
+            await db.collection('orders_metadata').updateOne(
+                { orderId },
+                {
+                    $set: {
+                        orderId,
+                        items: Array.isArray(items) ? items : [],
+                        total: totalNumber,
+                        subtotal: Number(subtotal || totalNumber),
+                        currency: currencyCode,
+                        customerEmail: customerEmail || '',
+                        shipping: Number(shipping || 0),
+                        shippingCountry,
+                        shippingLabel,
+                        shippingAddress: shippingAddress || {},
+                        updatedAt: new Date(),
+                    },
+                    $setOnInsert: { createdAt: new Date() }
+                },
+                { upsert: true }
+            );
+        } catch (cacheErr) {
+            console.warn('Could not cache order metadata in MongoDB:', cacheErr.message);
         }
 
         // Build line items for Stripe Checkout
@@ -539,9 +873,42 @@ app.get('/api/stripe/verify/:sessionId', async (req, res) => {
         }
 
         const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const isPaid = session.payment_status === 'paid';
+        const orderId = session.metadata?.orderId;
+
+        // Auto-send confirmation email on successful payment verification
+        if (isPaid && orderId) {
+            try {
+                const { db } = await connectDB();
+                const conf = await db.collection('payment_confirmations').findOne({ orderId });
+                if (!conf?.emailSent) {
+                    const record = await db.collection('orders_metadata').findOne({ orderId });
+                    const emailTarget = {
+                        orderId,
+                        items: record?.items || [],
+                        total: record?.total || (session.amount_total ? session.amount_total / 100 : 0),
+                        subtotal: record?.subtotal || record?.total || (session.amount_total ? session.amount_total / 100 : 0),
+                        shipping: record?.shipping || 0,
+                        shippingLabel: record?.shippingLabel || 'Europe (Free / Included)',
+                        shippingAddress: record?.shippingAddress || {},
+                        userEmail: record?.customerEmail || session.customer_details?.email,
+                    };
+                    const emailRes = await sendOrderConfirmationEmail(emailTarget);
+                    if (emailRes.success) {
+                        await db.collection('payment_confirmations').updateOne(
+                            { orderId },
+                            { $set: { emailSent: true, emailSentAt: new Date() } },
+                            { upsert: true }
+                        );
+                    }
+                }
+            } catch (autoEmailErr) {
+                console.warn('Auto-email error on verify:', autoEmailErr.message);
+            }
+        }
 
         res.json({
-            verified: session.payment_status === 'paid',
+            verified: isPaid,
             paymentStatus: session.payment_status,
             orderId: session.metadata?.orderId,
             amountTotal: session.amount_total,
@@ -550,6 +917,92 @@ app.get('/api/stripe/verify/:sessionId', async (req, res) => {
     } catch (err) {
         console.error('Stripe verify error:', err);
         res.status(500).json({ error: 'Failed to verify payment' });
+    }
+});
+
+// ============ ORDER EMAIL NOTIFICATION ENDPOINTS ============
+
+// 1. Send Order Confirmation Email (called on checkout completion or by admin resend)
+app.post('/api/send-order-email', async (req, res) => {
+    try {
+        const { orderId, orderData, settings, resend } = req.body;
+        if (!orderId && !orderData) {
+            return res.status(400).json({ error: 'Missing orderId or orderData' });
+        }
+
+        const { db } = await connectDB();
+        let targetOrder = orderData;
+
+        if (!targetOrder && orderId) {
+            targetOrder = await db.collection('orders_metadata').findOne({ orderId });
+        }
+
+        if (!targetOrder) {
+            return res.status(404).json({ error: 'Order details not found to send email' });
+        }
+
+        const targetId = orderId || targetOrder.orderId;
+        if (targetId && !resend) {
+            const conf = await db.collection('payment_confirmations').findOne({ orderId: targetId });
+            if (conf?.emailSent) {
+                return res.json({ success: true, alreadySent: true, message: 'Confirmation email already sent for this order' });
+            }
+        }
+
+        const result = await sendOrderConfirmationEmail(targetOrder, settings || {});
+        if (result.success && targetId) {
+            await db.collection('payment_confirmations').updateOne(
+                { orderId: targetId },
+                { $set: { emailSent: true, emailSentAt: new Date() } },
+                { upsert: true }
+            );
+        }
+
+        res.json(result);
+    } catch (err) {
+        console.error('Send order email error:', err);
+        res.status(500).json({ error: err.message || 'Failed to send order email' });
+    }
+});
+
+// 2. Test Email Endpoint (admin testing SMTP / Gmail App Password)
+app.post('/api/test-email', async (req, res) => {
+    try {
+        const { targetEmail, smtpSettings } = req.body;
+        const recipient = targetEmail || smtpSettings?.senderEmail || process.env.VITE_ADMIN_EMAIL || 'secondthriftt39@gmail.com';
+        
+        const testOrder = {
+            orderId: 'TEST_' + Date.now().toString(36).toUpperCase(),
+            userEmail: recipient,
+            shippingAddress: {
+                name: 'Store Administrator',
+                street: 'Vintage Hub, Suite 101',
+                city: 'Berlin',
+                postalCode: '10115',
+                country: 'Germany',
+                phone: '+49 123 456789',
+            },
+            items: [
+                {
+                    name: 'Test Vintage Work Jacket - Notification Check',
+                    size: 'L',
+                    quantity: 1,
+                    price: 75.00,
+                }
+            ],
+            subtotal: 75.00,
+            shipping: 0.00,
+            shippingLabel: 'Europe (Included / Free)',
+            total: 75.00,
+            paymentMethod: 'stripe',
+            paymentStatus: 'paid',
+        };
+
+        const result = await sendOrderConfirmationEmail(testOrder, smtpSettings || {}, { isTest: true });
+        res.json(result);
+    } catch (err) {
+        console.error('Test email error:', err);
+        res.status(500).json({ error: err.message || 'Failed to send test email' });
     }
 });
 
