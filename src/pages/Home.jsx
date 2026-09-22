@@ -6,7 +6,7 @@ import ProductCard from '../components/product/ProductCard';
 import { defaultCategories } from '../services/categories';
 
 // Hero & banner images — picked for BRIGHT contrast with text overlays
-const heroImg = '/hero-bg.jpeg';
+import heroImg from '../assets/hero-bg.jpeg';
 import latestDropImg from '../assets/latest-drop.png';
 import premiumDenimImg from '../assets/true-religion-collection.jpeg';
 import outerwearImg from '../assets/bulk-inventory.jpeg';
