@@ -47,6 +47,11 @@ export const getDefaultSettings = () => ({
         { country: 'Other EU', rate: 14.99 },
     ],
     freeShippingThreshold: 100,
+    regionalShipping: {
+        europe: { rate: 0, label: 'Europe (Included / Free)', freeThreshold: 100 },
+        usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 150 },
+        restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
+    },
     taxRate: 19,
     ownerWhatsApp: import.meta.env.VITE_OWNER_WHATSAPP || '+491234567890',
     wiseEmail: 'pay@secondthrift.com',

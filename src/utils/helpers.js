@@ -52,10 +52,63 @@ export const getBulkPrice = (product, quantity) => {
     return applicable ? applicable.price : product.price;
 };
 
-// Calculate order totals — admin price is final, no add-ons
-export const calculateOrderTotals = (items) => {
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    return { subtotal: total, shipping: 0, tax: 0, total };
+// Calculate order totals dynamically based on destination country and store settings
+export const calculateOrderTotals = (items, destinationCountry = '', settings = null) => {
+    const subtotal = (items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+    
+    const regional = settings?.regionalShipping || {
+        europe: { rate: 0, freeThreshold: 100 },
+        usa: { rate: 20.00, freeThreshold: 150 },
+        restOfWorld: { rate: 25.00, freeThreshold: 200 },
+    };
+
+    let shipping = 0;
+    let shippingZone = 'europe';
+    let shippingLabel = 'Europe (Included / Free)';
+
+    const normalizedCountry = (destinationCountry || '').trim().toLowerCase();
+
+    if (normalizedCountry) {
+        // 1. Check specific country overrides first
+        const countryOverride = settings?.shippingRates?.find(
+            r => r.country && r.country.trim().toLowerCase() === normalizedCountry
+        );
+
+        if (countryOverride && typeof countryOverride.rate === 'number') {
+            shipping = countryOverride.rate;
+            shippingLabel = `${countryOverride.country} Delivery`;
+        } else if (normalizedCountry === 'united states' || normalizedCountry === 'usa' || normalizedCountry === 'us') {
+            shippingZone = 'usa';
+            const usaConfig = regional.usa || { rate: 20, freeThreshold: 150 };
+            const isFree = usaConfig.freeThreshold > 0 && subtotal >= usaConfig.freeThreshold;
+            shipping = isFree ? 0 : (Number(usaConfig.rate) || 20);
+            shippingLabel = isFree ? 'USA Express (Free Shipping)' : 'USA Express Courier';
+        } else {
+            const isEurope = COUNTRIES_BY_REGION['Europe']?.some(
+                c => c.toLowerCase() === normalizedCountry
+            );
+
+            if (isEurope) {
+                shippingZone = 'europe';
+                const euConfig = regional.europe || { rate: 0, freeThreshold: 100 };
+                const isFree = (euConfig.rate === 0) || (euConfig.freeThreshold > 0 && subtotal >= euConfig.freeThreshold);
+                shipping = isFree ? 0 : (Number(euConfig.rate) || 0);
+                shippingLabel = isFree ? 'Europe (Included / Free)' : 'Europe Standard';
+            } else {
+                shippingZone = 'restOfWorld';
+                const rowConfig = regional.restOfWorld || { rate: 25, freeThreshold: 200 };
+                const isFree = rowConfig.freeThreshold > 0 && subtotal >= rowConfig.freeThreshold;
+                shipping = isFree ? 0 : (Number(rowConfig.rate) || 25);
+                shippingLabel = isFree ? 'International (Free)' : 'International Courier';
+            }
+        }
+    } else {
+        shipping = Number(regional.europe?.rate) || 0;
+        shippingLabel = 'Europe (Included / Free)';
+    }
+
+    const total = subtotal + shipping;
+    return { subtotal, shipping, tax: 0, total, shippingZone, shippingLabel };
 };
 
 // Validate email

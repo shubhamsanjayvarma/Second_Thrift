@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FiMapPin, FiPackage, FiCreditCard, FiCheck, FiSearch, FiChevronDown } from 'react-icons/fi';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useRegion } from '../context/RegionContext';
 import { useToast } from '../components/common/Toast';
 import { createOrder, updateOrderPaymentStatus } from '../services/orders';
 import {
@@ -20,6 +21,7 @@ import './Checkout.css';
 const Checkout = () => {
     const { items, clearCart } = useCart();
     const { user } = useAuth();
+    const { isUS, settings } = useRegion();
     const toast = useToast();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -34,7 +36,9 @@ const Checkout = () => {
     const countryRef = useRef(null);
 
     const [address, setAddress] = useState({
-        name: '', street: '', city: '', postalCode: '', country: '', region: '', phone: '',
+        name: '', street: '', city: '', postalCode: '',
+        country: isUS ? 'United States' : 'Germany',
+        region: '', phone: '',
     });
 
     // Handle Stripe return redirect
@@ -121,7 +125,7 @@ const Checkout = () => {
         setShowCountryDropdown(false);
     };
 
-    const { total } = calculateOrderTotals(items);
+    const { subtotal, shipping, tax, total, shippingLabel, shippingZone } = calculateOrderTotals(items, address.country, settings);
     const localCurrency = getCurrencyForCountry(address.country);
     const paymentCurrency = getPaymentCurrencyForCountry(address.country);
     const localTotal = convertFromEur(total, localCurrency, exchangeRates);
@@ -159,7 +163,13 @@ const Checkout = () => {
             const orderData = {
                 userId: user.uid, userEmail: user.email,
                 items: items.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity, size: i.size })),
-                shippingAddress: address, subtotal: total, shipping: 0, tax: 0, total,
+                shippingAddress: address,
+                subtotal,
+                shipping,
+                shippingLabel,
+                shippingZone,
+                tax: 0,
+                total,
                 displayCurrency: localCurrency,
                 displayTotal: localTotal,
                 paymentCurrency,
@@ -186,6 +196,9 @@ const Checkout = () => {
                         quantity: i.quantity,
                         size: i.size,
                     })),
+                    shipping,
+                    shippingCountry: address.country,
+                    shippingLabel,
                     total: paymentTotal,
                     currency: paymentCurrency,
                     customerEmail: user.email,
@@ -334,6 +347,12 @@ const Checkout = () => {
                                 <div className="checkout-address-preview">
                                     <h4>Shipping to:</h4>
                                     <p>{address.name}<br />{address.street}<br />{address.city}, {address.postalCode}<br />{address.region}, {address.country}<br />Tel: {address.phone}</p>
+                                    <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span><strong>Delivery:</strong> {shippingLabel}</span>
+                                        <span style={{ color: shipping === 0 ? 'var(--success)' : 'var(--primary)', fontWeight: 600 }}>
+                                            {shipping === 0 ? 'FREE / Included' : formatPrice(shipping)}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="checkout-nav">
                                     <button className="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
@@ -356,6 +375,16 @@ const Checkout = () => {
                                         You can pay using credit card, debit card, Apple Pay, Google Pay, or other supported methods.
                                     </p>
                                     <div className="wise-simple-total">
+                                        <span>Subtotal</span>
+                                        <span>{formatPrice(subtotal)}</span>
+                                    </div>
+                                    <div className="wise-simple-total" style={{ borderTop: 'none', paddingTop: 0 }}>
+                                        <span>Shipping ({shippingLabel})</span>
+                                        <span style={{ color: shipping === 0 ? 'var(--success)' : 'inherit' }}>
+                                            {shipping === 0 ? 'FREE' : formatPrice(shipping)}
+                                        </span>
+                                    </div>
+                                    <div className="wise-simple-total" style={{ borderTop: '1px solid var(--border-color)', marginTop: '8px', paddingTop: '12px' }}>
                                         <span>Total Amount</span>
                                         <strong>{formatPrice(total)}</strong>
                                     </div>
@@ -405,8 +434,22 @@ const Checkout = () => {
                                 {items.map(item => (
                                     <div key={`${item.id}-${item.size}`} className="summary-row"><span>{item.name} × {item.quantity}</span><span>{formatPrice(item.price * item.quantity)}</span></div>
                                 ))}
+                                <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '10px' }}>
+                                    <span>Subtotal</span>
+                                    <span>{formatPrice(subtotal)}</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span>Shipping ({shippingLabel})</span>
+                                    <span style={{ color: shipping === 0 ? 'var(--success)' : 'inherit', fontWeight: 600 }}>
+                                        {shipping === 0 ? 'FREE' : formatPrice(shipping)}
+                                    </span>
+                                </div>
                                 <div className="summary-row summary-total"><span>Total</span><span>{formatPrice(total)}</span></div>
-                                <p className="free-shipping-note" style={{ color: 'var(--success)', marginTop: '8px' }}>✓ Shipping & taxes included</p>
+                                {shipping === 0 ? (
+                                    <p className="free-shipping-note" style={{ color: 'var(--success)', marginTop: '8px' }}>✓ Shipping & taxes included</p>
+                                ) : (
+                                    <p className="free-shipping-note" style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.8rem' }}>📦 Tracked international courier</p>
+                                )}
                                 <div className="wise-mini-badge" style={{ background: 'rgba(99, 91, 255, 0.1)' }}>
                                     <span className="wise-brand-sm" style={{ color: '#635BFF' }}>Stripe</span>
                                     <span>Secure Payments</span>

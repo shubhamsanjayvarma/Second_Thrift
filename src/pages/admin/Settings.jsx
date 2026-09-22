@@ -63,6 +63,25 @@ const AdminSettings = () => {
         }));
     };
 
+    const updateRegionalShipping = (regionKey, field, value) => {
+        const defaultReg = {
+            europe: { rate: 0, label: 'Europe (Included / Free)', freeThreshold: 100 },
+            usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 150 },
+            restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
+        };
+        const current = { ...defaultReg, ...(settings.regionalShipping || {}) };
+        setSettings(prev => ({
+            ...prev,
+            regionalShipping: {
+                ...current,
+                [regionKey]: {
+                    ...current[regionKey],
+                    [field]: value
+                }
+            }
+        }));
+    };
+
     if (loading || !settings) {
         return (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--admin-text-muted)' }}>
@@ -102,13 +121,98 @@ const AdminSettings = () => {
             </div>
 
             <div className="settings-section">
-                <h3>Shipping</h3>
+                <h3>🌍 Regional Shipping & Rates (Europe vs USA)</h3>
                 <div className="settings-form">
-                    <label>Free Shipping Threshold (€) <input type="number" value={settings.freeShippingThreshold} onChange={e => updateField('freeShippingThreshold', parseFloat(e.target.value))} /></label>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
+                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>🇺🇸</span> United States Shipping
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                            <label>
+                                USA Shipping Rate (€)
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={settings.regionalShipping?.usa?.rate ?? 20.00}
+                                    onChange={e => updateRegionalShipping('usa', 'rate', parseFloat(e.target.value) || 0)}
+                                />
+                            </label>
+                            <label>
+                                USA Free Shipping Threshold (€)
+                                <input
+                                    type="number"
+                                    step="1"
+                                    placeholder="0 to disable"
+                                    value={settings.regionalShipping?.usa?.freeThreshold ?? 150}
+                                    onChange={e => updateRegionalShipping('usa', 'freeThreshold', parseFloat(e.target.value) || 0)}
+                                />
+                            </label>
+                        </div>
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 'var(--space-2) 0 0 0' }}>
+                            Applied automatically at checkout whenever a customer ships to the United States.
+                        </p>
+                    </div>
+
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
+                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>🇪🇺</span> Europe Shipping (Primary Market)
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                            <label>
+                                Europe Shipping Rate (€)
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={settings.regionalShipping?.europe?.rate ?? 0}
+                                    onChange={e => updateRegionalShipping('europe', 'rate', parseFloat(e.target.value) || 0)}
+                                />
+                            </label>
+                            <label>
+                                Europe Free Shipping Threshold (€)
+                                <input
+                                    type="number"
+                                    step="1"
+                                    value={settings.regionalShipping?.europe?.freeThreshold ?? (settings.freeShippingThreshold || 100)}
+                                    onChange={e => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        updateRegionalShipping('europe', 'freeThreshold', val);
+                                        updateField('freeShippingThreshold', val);
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
+                        <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>🌐</span> Rest of the World Shipping
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                            <label>
+                                Rest of World Rate (€)
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={settings.regionalShipping?.restOfWorld?.rate ?? 25.00}
+                                    onChange={e => updateRegionalShipping('restOfWorld', 'rate', parseFloat(e.target.value) || 0)}
+                                />
+                            </label>
+                            <label>
+                                Rest of World Free Threshold (€)
+                                <input
+                                    type="number"
+                                    step="1"
+                                    value={settings.regionalShipping?.restOfWorld?.freeThreshold ?? 200}
+                                    onChange={e => updateRegionalShipping('restOfWorld', 'freeThreshold', parseFloat(e.target.value) || 0)}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
                     <label>Tax Rate (%) <input type="number" value={settings.taxRate} onChange={e => updateField('taxRate', parseFloat(e.target.value))} /></label>
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                            <h4 style={{ fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', color: 'var(--text-secondary)', margin: 0 }}>Shipping Rates by Country</h4>
+                            <h4 style={{ fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', color: 'var(--text-secondary)', margin: 0 }}>Specific Country Overrides</h4>
                             <button className="btn btn-ghost btn-sm" onClick={addShippingRate}>+ Add Rate</button>
                         </div>
                         {settings.shippingRates.map((rate, idx) => (

@@ -436,7 +436,7 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
             return res.status(500).json({ error: 'Stripe is not configured on the server' });
         }
 
-        const { orderId, items, total, currency = 'EUR', customerEmail, successUrl, cancelUrl } = req.body;
+        const { orderId, items, total, currency = 'EUR', customerEmail, successUrl, cancelUrl, shipping = 0, shippingCountry = '' } = req.body;
 
         if (!orderId || typeof orderId !== 'string') {
             return res.status(400).json({ error: 'Missing or invalid orderId' });
@@ -474,6 +474,23 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
                     quantity,
                 });
             }
+        }
+
+        // Add shipping line item if shipping fee applies (e.g. USA / International)
+        const shippingAmount = Math.round(Number(shipping || 0) * 100);
+        if (shippingAmount > 0) {
+            const countryLabel = shippingCountry ? ` (${shippingCountry})` : '';
+            lineItems.push({
+                price_data: {
+                    currency: currencyCode,
+                    product_data: {
+                        name: `Express International Shipping${countryLabel}`,
+                        description: `Tracked international courier delivery to ${shippingCountry || 'destination'}`,
+                    },
+                    unit_amount: shippingAmount,
+                },
+                quantity: 1,
+            });
         }
 
         // Fallback: if no line items, create a single item

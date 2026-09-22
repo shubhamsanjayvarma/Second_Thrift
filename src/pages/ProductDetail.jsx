@@ -5,6 +5,7 @@ import { FiShoppingBag, FiHeart, FiMinus, FiPlus, FiChevronRight, FiChevronLeft,
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
+import { useRegion } from '../context/RegionContext';
 import { useToast } from '../components/common/Toast';
 import { formatPrice, SIZES, COLORS } from '../utils/helpers';
 import { getProductById } from '../services/products';
@@ -18,6 +19,7 @@ const ProductDetail = () => {
     const { addItem } = useCart();
     const { isInWishlist, toggleItem } = useWishlist();
     const { user } = useAuth();
+    const { isUS, getRegionalPrice } = useRegion();
     const navigate = useNavigate();
     const toast = useToast();
 
@@ -298,6 +300,11 @@ const ProductDetail = () => {
                                 <span className="product-original-price">{formatPrice(product.price, product.currency)}</span>
                             )}
                             <span className={`badge badge-${conditionColor}`}>{conditionLabel}</span>
+                            {isUS && (
+                                <span style={{ display: 'block', width: '100%', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
+                                    {getRegionalPrice(currentPrice).secondary}
+                                </span>
+                            )}
                         </div>
 
                         {/* SKU */}
@@ -454,7 +461,7 @@ const ProductDetail = () => {
                         )}
 
                         <div className="product-trust">
-                            <div><FiTruck /> Shipping from India to Europe available</div>
+                            <div><FiTruck /> {isUS ? 'Express courier to USA (tracked · shipping calculated at checkout)' : 'Shipping & delivery across Europe (Included)'}</div>
                             <div><FiShield /> Quality checked before shipping</div>
                             <div><FiRefreshCw /> Easy returns within 15 days</div>
                         </div>

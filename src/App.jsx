@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { RegionProvider } from './context/RegionContext';
 import { ToastProvider } from './components/common/Toast';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -78,7 +79,8 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
-            <ToastProvider>
+            <RegionProvider>
+              <ToastProvider>
               <Routes>
                 {/* Admin Routes */}
                 <Route path="/admin/login" element={
@@ -130,7 +132,8 @@ function App() {
                 } />
               </Routes>
             </ToastProvider>
-          </WishlistProvider>
+          </RegionProvider>
+        </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </Router>

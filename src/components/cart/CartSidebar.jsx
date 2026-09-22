@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../context/CartContext';
+import { useRegion } from '../../context/RegionContext';
 import { Link } from 'react-router-dom';
 import { FiX, FiMinus, FiPlus, FiTrash2, FiShoppingBag } from 'react-icons/fi';
 import { formatPrice } from '../../utils/helpers';
@@ -7,6 +8,7 @@ import './CartSidebar.css';
 
 const CartSidebar = () => {
     const { items, isOpen, setCartOpen, cartCount, subtotal, removeItem, updateQuantity } = useCart();
+    const { isUS } = useRegion();
 
     return (
         <AnimatePresence>
@@ -87,7 +89,11 @@ const CartSidebar = () => {
                                         <span>Subtotal</span>
                                         <span className="cart-subtotal-price">{formatPrice(subtotal)}</span>
                                     </div>
-                                    <p className="cart-shipping-note">Shipping & taxes calculated at checkout</p>
+                                    <p className="cart-shipping-note">
+                                        {isUS
+                                            ? '🇺🇸 USA express shipping added at checkout'
+                                            : '🇪🇺 Free shipping across Europe included'}
+                                    </p>
                                     <Link
                                         to="/checkout"
                                         className="btn btn-secondary btn-lg w-full"

@@ -21,7 +21,7 @@ export const formatOrderMessage = (order) => {
 ${items}
 
 💰 *Subtotal:* €${(order.subtotal || 0).toFixed(2)}
-🚚 *Shipping:* €${(order.shipping || 0).toFixed(2)}
+🚚 *Shipping:* ${order.shipping > 0 ? `€${(order.shipping || 0).toFixed(2)} (${order.shippingLabel || 'USA / Express'})` : 'FREE (Europe Included)'}
 📊 *Tax:* €${(order.tax || 0).toFixed(2)}
 ━━━━━━━━━━━━━━━━━
 💵 *Total:* €${(order.total || 0).toFixed(2)}
@@ -35,7 +35,7 @@ ${address.country || ''}
 
 ⏰ *Order Time:* ${new Date().toLocaleString('en-GB')}
 ━━━━━━━━━━━━━━━━━
-💳 Payment: Pending (Wise)`;
+💳 Payment: ${order.paymentStatus || 'Pending'} (${order.paymentMethod || 'Stripe'})`;
 };
 
 export const sendWhatsAppNotification = (order) => {

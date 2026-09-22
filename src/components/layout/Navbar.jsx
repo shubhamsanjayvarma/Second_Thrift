@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useRegion } from '../../context/RegionContext';
 import { FiShoppingBag, FiUser, FiMenu, FiX, FiSearch, FiHeart, FiLogOut, FiSettings } from 'react-icons/fi';
 import logo from '../../assets/logo-text.png';
 import './Navbar.css';
@@ -14,6 +15,7 @@ const Navbar = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const { user } = useAuth();
     const { cartCount, toggleCart } = useCart();
+    const { isUS, setRegion } = useRegion();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -83,6 +85,16 @@ const Navbar = () => {
                     </div>
 
                     <div className="navbar-actions">
+                        <button
+                            className="region-switch-btn"
+                            onClick={() => setRegion(isUS ? 'EU' : 'US')}
+                            title={isUS ? 'Active: USA ($ USD) - Click for Europe (€ EUR)' : 'Active: Europe (€ EUR) - Click for USA ($ USD)'}
+                            aria-label="Switch shipping region and currency"
+                        >
+                            <span className="region-flag">{isUS ? '🇺🇸' : '🇪🇺'}</span>
+                            <span className="region-code">{isUS ? 'USD' : 'EUR'}</span>
+                        </button>
+
                         <button className="navbar-action-btn" onClick={() => setSearchOpen(!searchOpen)} aria-label="Search">
                             <FiSearch size={20} />
                         </button>
