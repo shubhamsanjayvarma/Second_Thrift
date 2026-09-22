@@ -99,10 +99,10 @@ const Shop = () => {
             <div className="shop-header">
                 <img
                     src={shopHeroBg}
-                    alt=""
+                    alt="Second Thrift vintage denim collection"
                     className="shop-hero-bg-img"
-                    width="780"
-                    height="1040"
+                    width="774"
+                    height="1024"
                     loading="eager"
                     decoding="async"
                     fetchPriority="high"
