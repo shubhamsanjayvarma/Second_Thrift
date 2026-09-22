@@ -52,13 +52,92 @@ export const getBulkPrice = (product, quantity) => {
     return applicable ? applicable.price : product.price;
 };
 
+export const DEFAULT_USA_WEIGHT_TIERS = [
+    { maxWeight: 2, rate: 20.00, label: 'Up to 2 KG' },
+    { maxWeight: 5, rate: 35.00, label: 'Up to 5 KG' },
+    { maxWeight: 10, rate: 60.00, label: 'Up to 10 KG' },
+    { maxWeight: 20, rate: 110.00, label: 'Up to 20 KG' },
+    { maxWeight: 30, rate: 160.00, label: 'Up to 30 KG' },
+];
+
+// Calculate total parcel weight in KG from cart items
+export const calculateCartWeight = (items) => {
+    if (!items || items.length === 0) return 0;
+    const total = items.reduce((sum, item) => {
+        const qty = Number(item.quantity) || 1;
+        let unitWeight = 0;
+        if (item.weight && !isNaN(parseFloat(item.weight)) && parseFloat(item.weight) > 0) {
+            unitWeight = parseFloat(item.weight);
+        } else {
+            // Check if title or name has explicit weight (e.g. "10 kg", "20 kg", "5 kg")
+            const nameMatch = (item.name || '').match(/(\d+(?:\.\d+)?)\s*(?:kg|kilo)/i);
+            if (nameMatch) {
+                unitWeight = parseFloat(nameMatch[1]);
+            } else {
+                unitWeight = 0.8; // default 0.8 kg per piece of apparel
+            }
+        }
+        return sum + (unitWeight * qty);
+    }, 0);
+    return Math.round(total * 100) / 100;
+};
+
+// Determine USA shipping rate and label according to parcel weight and settings
+export const getUsaShippingForWeight = (totalWeight, usaConfig) => {
+    const rawTiers = (usaConfig?.weightTiers && usaConfig.weightTiers.length > 0)
+        ? usaConfig.weightTiers
+        : DEFAULT_USA_WEIGHT_TIERS;
+
+    // Filter valid tiers and sort ascending by maxWeight
+    const tiers = [...rawTiers]
+        .filter(t => t && !isNaN(parseFloat(t.maxWeight)) && !isNaN(parseFloat(t.rate)))
+        .map(t => ({
+            maxWeight: parseFloat(t.maxWeight),
+            rate: parseFloat(t.rate),
+            label: t.label || `Up to ${t.maxWeight} KG`,
+        }))
+        .sort((a, b) => a.maxWeight - b.maxWeight);
+
+    if (tiers.length === 0) {
+        return {
+            rate: Number(usaConfig?.rate) || 20.00,
+            label: 'USA Express Courier',
+            tier: null,
+        };
+    }
+
+    // Match first tier where totalWeight <= maxWeight
+    const matched = tiers.find(t => totalWeight <= t.maxWeight);
+    if (matched) {
+        return {
+            rate: matched.rate,
+            label: `USA Express (${matched.label})`,
+            tier: matched,
+        };
+    }
+
+    // Weight exceeds highest tier: highest tier rate + €6 per excess kg
+    const highest = tiers[tiers.length - 1];
+    const excessWeight = Math.max(0, totalWeight - highest.maxWeight);
+    const perKgRate = 6.00;
+    const surplus = Math.ceil(excessWeight) * perKgRate;
+    const finalRate = highest.rate + surplus;
+
+    return {
+        rate: finalRate,
+        label: `USA Express (${totalWeight.toFixed(1)} KG Bulk)`,
+        tier: highest,
+    };
+};
+
 // Calculate order totals dynamically based on destination country and store settings
 export const calculateOrderTotals = (items, destinationCountry = '', settings = null) => {
     const subtotal = (items || []).reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+    const totalWeight = calculateCartWeight(items);
     
     const regional = settings?.regionalShipping || {
         europe: { rate: 0, freeThreshold: 100 },
-        usa: { rate: 20.00, freeThreshold: 150 },
+        usa: { rate: 20.00, freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
         restOfWorld: { rate: 25.00, freeThreshold: 200 },
     };
 
@@ -79,10 +158,17 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
             shippingLabel = `${countryOverride.country} Delivery`;
         } else if (normalizedCountry === 'united states' || normalizedCountry === 'usa' || normalizedCountry === 'us') {
             shippingZone = 'usa';
-            const usaConfig = regional.usa || { rate: 20, freeThreshold: 150 };
+            const usaConfig = regional.usa || { rate: 20, freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS };
             const isFree = usaConfig.freeThreshold > 0 && subtotal >= usaConfig.freeThreshold;
-            shipping = isFree ? 0 : (Number(usaConfig.rate) || 20);
-            shippingLabel = isFree ? 'USA Express (Free Shipping)' : 'USA Express Courier';
+            
+            if (isFree) {
+                shipping = 0;
+                shippingLabel = 'USA Express (Free Shipping)';
+            } else {
+                const weightShipping = getUsaShippingForWeight(totalWeight, usaConfig);
+                shipping = weightShipping.rate;
+                shippingLabel = weightShipping.label;
+            }
         } else {
             const isEurope = COUNTRIES_BY_REGION['Europe']?.some(
                 c => c.toLowerCase() === normalizedCountry
@@ -108,7 +194,7 @@ export const calculateOrderTotals = (items, destinationCountry = '', settings = 
     }
 
     const total = subtotal + shipping;
-    return { subtotal, shipping, tax: 0, total, shippingZone, shippingLabel };
+    return { subtotal, shipping, tax: 0, total, shippingZone, shippingLabel, totalWeight };
 };
 
 // Validate email

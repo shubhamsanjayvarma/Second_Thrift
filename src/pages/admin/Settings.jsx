@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../components/common/Toast';
-import { getSettings, updateSettings, getDefaultSettings } from '../../services/settings';
+import { getSettings, updateSettings, getDefaultSettings, DEFAULT_USA_WEIGHT_TIERS } from '../../services/settings';
 import './Admin.css';
 
 const AdminSettings = () => {
@@ -66,7 +66,7 @@ const AdminSettings = () => {
     const updateRegionalShipping = (regionKey, field, value) => {
         const defaultReg = {
             europe: { rate: 0, label: 'Europe (Included / Free)', freeThreshold: 100 },
-            usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 150 },
+            usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 0, weightTiers: DEFAULT_USA_WEIGHT_TIERS },
             restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
         };
         const current = { ...defaultReg, ...(settings.regionalShipping || {}) };
@@ -80,6 +80,43 @@ const AdminSettings = () => {
                 }
             }
         }));
+    };
+
+    const getUsaTiers = () => {
+        if (settings?.regionalShipping?.usa?.weightTiers && settings.regionalShipping.usa.weightTiers.length > 0) {
+            return settings.regionalShipping.usa.weightTiers;
+        }
+        return DEFAULT_USA_WEIGHT_TIERS;
+    };
+
+    const addUsaWeightTier = () => {
+        const tiers = getUsaTiers();
+        const lastMax = tiers.length > 0 ? Number(tiers[tiers.length - 1].maxWeight) : 10;
+        const nextMax = lastMax + 10;
+        const newTier = {
+            maxWeight: nextMax,
+            rate: 50.00,
+            label: `Up to ${nextMax} KG`,
+        };
+        updateRegionalShipping('usa', 'weightTiers', [...tiers, newTier]);
+    };
+
+    const updateUsaWeightTier = (idx, field, value) => {
+        const tiers = [...getUsaTiers()];
+        tiers[idx] = { ...tiers[idx], [field]: value };
+        if (field === 'maxWeight' && (!tiers[idx].label || tiers[idx].label.startsWith('Up to '))) {
+            tiers[idx].label = `Up to ${value} KG`;
+        }
+        updateRegionalShipping('usa', 'weightTiers', tiers);
+    };
+
+    const removeUsaWeightTier = (idx) => {
+        const tiers = getUsaTiers().filter((_, i) => i !== idx);
+        updateRegionalShipping('usa', 'weightTiers', tiers);
+    };
+
+    const resetUsaWeightTiers = () => {
+        updateRegionalShipping('usa', 'weightTiers', DEFAULT_USA_WEIGHT_TIERS);
     };
 
     if (loading || !settings) {
@@ -125,17 +162,19 @@ const AdminSettings = () => {
                 <div className="settings-form">
                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>
                         <h4 style={{ margin: '0 0 var(--space-3) 0', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>🇺🇸</span> United States Shipping
+                            <span>🇺🇸</span> United States Shipping Rates
                         </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)' }}>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
                             <label>
-                                USA Shipping Rate (€)
+                                Fallback Flat Rate (€)
                                 <input
                                     type="number"
                                     step="0.01"
                                     value={settings.regionalShipping?.usa?.rate ?? 20.00}
                                     onChange={e => updateRegionalShipping('usa', 'rate', parseFloat(e.target.value) || 0)}
                                 />
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Used if no weight tier matches</span>
                             </label>
                             <label>
                                 USA Free Shipping Threshold (€)
@@ -143,14 +182,95 @@ const AdminSettings = () => {
                                     type="number"
                                     step="1"
                                     placeholder="0 to disable"
-                                    value={settings.regionalShipping?.usa?.freeThreshold ?? 150}
+                                    value={settings.regionalShipping?.usa?.freeThreshold ?? 0}
                                     onChange={e => updateRegionalShipping('usa', 'freeThreshold', parseFloat(e.target.value) || 0)}
                                 />
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Set 0 to disable free shipping for USA</span>
                             </label>
                         </div>
-                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 'var(--space-2) 0 0 0' }}>
-                            Applied automatically at checkout whenever a customer ships to the United States.
-                        </p>
+
+                        {/* Weight Tiers Table */}
+                        <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 'var(--space-4)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: 'var(--space-3)' }}>
+                                <div>
+                                    <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        ⚖️ USA Weight-Based Shipping Tiers (10 KG, 20 KG, etc.)
+                                    </h5>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                                        Shipping is computed from total cart weight. Set custom rates for 10 kg, 20 kg bundles, or add any custom weight tiers.
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" className="btn btn-ghost btn-sm" onClick={resetUsaWeightTiers} title="Reset to standard tiers">
+                                        ↺ Reset Defaults
+                                    </button>
+                                    <button type="button" className="btn btn-primary btn-sm" onClick={addUsaWeightTier}>
+                                        + Add Weight Tier
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '130px 120px 1fr 40px', gap: '10px', padding: '0 4px', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                                    <span>Max Weight</span>
+                                    <span>Rate (€)</span>
+                                    <span>Tier Description</span>
+                                    <span></span>
+                                </div>
+
+                                {getUsaTiers().map((tier, idx) => (
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '130px 120px 1fr 40px', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type="number"
+                                                step="0.5"
+                                                min="0.1"
+                                                value={tier.maxWeight}
+                                                onChange={e => updateUsaWeightTier(idx, 'maxWeight', parseFloat(e.target.value) || 0)}
+                                                style={{ width: '100%', paddingRight: '28px' }}
+                                                placeholder="e.g. 10"
+                                            />
+                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-muted)', pointerEvents: 'none' }}>KG</span>
+                                        </div>
+
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={tier.rate}
+                                                onChange={e => updateUsaWeightTier(idx, 'rate', parseFloat(e.target.value) || 0)}
+                                                style={{ width: '100%', paddingRight: '22px' }}
+                                                placeholder="0.00"
+                                            />
+                                            <span style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--text-muted)', pointerEvents: 'none' }}>€</span>
+                                        </div>
+
+                                        <input
+                                            type="text"
+                                            value={tier.label || ''}
+                                            onChange={e => updateUsaWeightTier(idx, 'label', e.target.value)}
+                                            placeholder={`Up to ${tier.maxWeight} KG`}
+                                            style={{ width: '100%' }}
+                                        />
+
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() => removeUsaWeightTier(idx)}
+                                            style={{ color: '#ff4444', padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            title="Delete tier"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '10px' }}>
+                                💡 <em>Orders over {Math.max(...getUsaTiers().map(t => Number(t.maxWeight) || 0))} KG will automatically apply the top tier rate plus a €6/KG excess weight surcharge.</em>
+                            </p>
+                        </div>
                     </div>
 
                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: 'var(--space-4)' }}>

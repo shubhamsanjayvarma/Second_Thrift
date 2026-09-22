@@ -125,7 +125,7 @@ const Checkout = () => {
         setShowCountryDropdown(false);
     };
 
-    const { subtotal, shipping, tax, total, shippingLabel, shippingZone } = calculateOrderTotals(items, address.country, settings);
+    const { subtotal, shipping, tax, total, shippingLabel, shippingZone, totalWeight } = calculateOrderTotals(items, address.country, settings);
     const localCurrency = getCurrencyForCountry(address.country);
     const paymentCurrency = getPaymentCurrencyForCountry(address.country);
     const localTotal = convertFromEur(total, localCurrency, exchangeRates);
@@ -162,12 +162,13 @@ const Checkout = () => {
 
             const orderData = {
                 userId: user.uid, userEmail: user.email,
-                items: items.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity, size: i.size })),
+                items: items.map(i => ({ productId: i.id, name: i.name, price: i.price, quantity: i.quantity, size: i.size, weight: i.weight || null })),
                 shippingAddress: address,
                 subtotal,
                 shipping,
                 shippingLabel,
                 shippingZone,
+                totalWeight,
                 tax: 0,
                 total,
                 displayCurrency: localCurrency,
@@ -348,7 +349,14 @@ const Checkout = () => {
                                     <h4>Shipping to:</h4>
                                     <p>{address.name}<br />{address.street}<br />{address.city}, {address.postalCode}<br />{address.region}, {address.country}<br />Tel: {address.phone}</p>
                                     <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span><strong>Delivery:</strong> {shippingLabel}</span>
+                                        <div>
+                                            <span><strong>Delivery:</strong> {shippingLabel}</span>
+                                            {totalWeight > 0 && shippingZone === 'usa' && (
+                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                    Estimated parcel weight: <strong>{totalWeight.toFixed(1)} KG</strong>
+                                                </div>
+                                            )}
+                                        </div>
                                         <span style={{ color: shipping === 0 ? 'var(--success)' : 'var(--primary)', fontWeight: 600 }}>
                                             {shipping === 0 ? 'FREE / Included' : formatPrice(shipping)}
                                         </span>

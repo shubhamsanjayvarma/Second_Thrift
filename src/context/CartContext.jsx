@@ -92,6 +92,7 @@ export const CartProvider = ({ children }) => {
                 image: product.images?.[0] || '',
                 size,
                 quantity,
+                weight: product.weight || null,
             },
         });
     };

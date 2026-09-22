@@ -24,6 +24,14 @@ export const subscribeToSettings = (callback) => {
     });
 };
 
+export const DEFAULT_USA_WEIGHT_TIERS = [
+    { maxWeight: 2, rate: 20.00, label: 'Up to 2 KG' },
+    { maxWeight: 5, rate: 35.00, label: 'Up to 5 KG' },
+    { maxWeight: 10, rate: 60.00, label: 'Up to 10 KG' },
+    { maxWeight: 20, rate: 110.00, label: 'Up to 20 KG' },
+    { maxWeight: 30, rate: 160.00, label: 'Up to 30 KG' },
+];
+
 export const getDefaultSettings = () => ({
     siteName: 'Second Thrift',
     heroTitle: 'Premium Thrift Fashion',
@@ -49,7 +57,12 @@ export const getDefaultSettings = () => ({
     freeShippingThreshold: 100,
     regionalShipping: {
         europe: { rate: 0, label: 'Europe (Included / Free)', freeThreshold: 100 },
-        usa: { rate: 20.00, label: 'United States (Express Courier)', freeThreshold: 150 },
+        usa: {
+            rate: 20.00,
+            label: 'United States (Express Courier)',
+            freeThreshold: 0,
+            weightTiers: DEFAULT_USA_WEIGHT_TIERS,
+        },
         restOfWorld: { rate: 25.00, label: 'Rest of World (Standard International)', freeThreshold: 200 },
     },
     taxRate: 19,

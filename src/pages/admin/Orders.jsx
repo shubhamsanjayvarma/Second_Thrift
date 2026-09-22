@@ -110,7 +110,7 @@ const AdminOrders = () => {
             invoice_date: new Date().toISOString().split('T')[0],
             order_reference: order.id,
             service: serviceCode,
-            package_weight: '0.5',
+            package_weight: order.totalWeight ? String(order.totalWeight) : '0.5',
             package_length: '10',
             package_breadth: '10',
             package_height: '10',
