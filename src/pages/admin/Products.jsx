@@ -27,8 +27,8 @@ const EMPTY_FORM = {
     bulkPrices: [],
     weight: '',
     dimensions: { length: '', breadth: '', height: '' },
-    shippingType: 'default', // 'default' | 'custom' | 'free'
-    shippingPriceEurope: '', // custom EU shipping rate
+    shippingType: 'custom', // 'custom' | 'free'
+    shippingPriceEurope: '0', // custom EU shipping rate (0 = Free)
     shippingPriceUsa: '',    // custom USA shipping rate
     shippingPriceRow: '',    // custom Rest of World shipping rate
 };
@@ -94,8 +94,8 @@ const AdminProducts = () => {
             lowStockAlert: String(product.lowStockAlert || '3'),
             minQty: String(product.minQty || '1'),
             weight: String(product.weight || ''),
-            shippingType: product.shippingType || (product.isFreeShipping ? 'free' : ((product.shippingPriceUsa !== undefined && product.shippingPriceUsa !== null) || (product.shippingPriceEurope !== undefined && product.shippingPriceEurope !== null) ? 'custom' : 'default')),
-            shippingPriceEurope: product.shippingPriceEurope !== undefined && product.shippingPriceEurope !== null ? String(product.shippingPriceEurope) : '',
+            shippingType: product.shippingType === 'free' || product.isFreeShipping ? 'free' : 'custom',
+            shippingPriceEurope: product.shippingPriceEurope !== undefined && product.shippingPriceEurope !== null ? String(product.shippingPriceEurope) : '0',
             shippingPriceUsa: product.shippingPriceUsa !== undefined && product.shippingPriceUsa !== null ? String(product.shippingPriceUsa) : '',
             shippingPriceRow: product.shippingPriceRow !== undefined && product.shippingPriceRow !== null ? String(product.shippingPriceRow) : '',
             sizes: product.sizes || [], colors: product.colors || [], materials: product.materials || [],
@@ -287,22 +287,10 @@ const AdminProducts = () => {
                     <FiTruck size={18} /> Shipping Pricing for this Product
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '-4px 0 12px 0' }}>
-                    Set shipping charges for this specific product or use automatic weight tiers.
+                    Set shipping charges for this specific product across different regions.
                 </p>
 
                 <div className="ap-shipping-mode-cards">
-                    <div
-                        className={`ap-shipping-mode-card ${form.shippingType === 'default' ? 'active' : ''}`}
-                        onClick={() => setForm({ ...form, shippingType: 'default' })}
-                    >
-                        <div className="ap-shipping-mode-header">
-                            <span>🌐</span> Store Defaults (Auto)
-                        </div>
-                        <p className="ap-shipping-mode-desc">
-                            Europe Free (€0). USA & Rest of World calculated automatically by parcel weight.
-                        </p>
-                    </div>
-
                     <div
                         className={`ap-shipping-mode-card ${form.shippingType === 'custom' ? 'active' : ''}`}
                         onClick={() => setForm({ ...form, shippingType: 'custom' })}
@@ -359,7 +347,7 @@ const AdminProducts = () => {
                                     onChange={e => setForm({ ...form, shippingPriceUsa: e.target.value })}
                                 />
                             </div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom USA rate for this item</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Specific shipping charge for USA</span>
                         </div>
 
                         <div className="ap-field" style={{ margin: 0 }}>
@@ -377,15 +365,6 @@ const AdminProducts = () => {
                             </div>
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>International</span>
                         </div>
-                    </div>
-                )}
-
-                {form.shippingType === 'default' && (
-                    <div className="ap-shipping-preview-box">
-                        <FiTruck size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                        <span>
-                            Weight matching active: At <strong>{form.weight ? `${form.weight} KG` : '0.8 KG (Default)'}</strong>, USA shipping will use your store's weight tiers configured in Admin Settings. Europe is <strong>FREE (€0.00)</strong>.
-                        </span>
                     </div>
                 )}
             </div>
@@ -432,13 +411,6 @@ const AdminProducts = () => {
                 <div style={{ marginTop: '12px' }}>
                     <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Product Shipping Price</label>
                     <div className="ap-shipping-mode-cards" style={{ marginTop: '6px' }}>
-                        <div
-                            className={`ap-shipping-mode-card ${form.shippingType === 'default' ? 'active' : ''}`}
-                            onClick={() => setForm({ ...form, shippingType: 'default' })}
-                        >
-                            <div className="ap-shipping-mode-header"><span>🌐</span> Store Defaults</div>
-                            <p className="ap-shipping-mode-desc">Europe Free, USA auto by weight</p>
-                        </div>
                         <div
                             className={`ap-shipping-mode-card ${form.shippingType === 'custom' ? 'active' : ''}`}
                             onClick={() => setForm({ ...form, shippingType: 'custom' })}
@@ -534,13 +506,9 @@ const AdminProducts = () => {
                         <td className="ap-td-shipping">
                             {product.shippingType === 'free' || product.isFreeShipping ? (
                                 <span className="ap-shipping-table-badge free">🎁 Free</span>
-                            ) : product.shippingType === 'custom' ? (
-                                <span className="ap-shipping-table-badge custom" title={`EU: €${product.shippingPriceEurope ?? 0} | USA: €${product.shippingPriceUsa ?? 'Auto'}`}>
-                                    ✈️ {product.shippingPriceUsa !== null && product.shippingPriceUsa !== undefined ? `USA €${product.shippingPriceUsa}` : 'Custom'}
-                                </span>
                             ) : (
-                                <span className="ap-shipping-table-badge default" title="Calculated from store settings & weight">
-                                    🚚 Auto {product.weight ? `(${product.weight}kg)` : ''}
+                                <span className="ap-shipping-table-badge custom" title={`EU: €${product.shippingPriceEurope ?? 0} | USA: €${product.shippingPriceUsa ?? '0'}`}>
+                                    ✈️ {product.shippingPriceUsa !== null && product.shippingPriceUsa !== undefined && product.shippingPriceUsa !== '' ? `USA €${product.shippingPriceUsa}` : 'Custom'}
                                 </span>
                             )}
                         </td>
