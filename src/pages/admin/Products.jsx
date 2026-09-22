@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiChevronLeft, FiChevronRight, FiTag, FiStar, FiPackage, FiTarget } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiChevronLeft, FiChevronRight, FiTag, FiStar, FiPackage, FiTarget, FiTruck, FiGlobe } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
 import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, GRADES, WAIST_SIZES, CURRENCIES, isYouTubeUrl, isVideoUrl } from '../../utils/helpers';
 import { defaultCategories } from '../../services/categories';
@@ -27,6 +27,10 @@ const EMPTY_FORM = {
     bulkPrices: [],
     weight: '',
     dimensions: { length: '', breadth: '', height: '' },
+    shippingType: 'default', // 'default' | 'custom' | 'free'
+    shippingPriceEurope: '', // custom EU shipping rate
+    shippingPriceUsa: '',    // custom USA shipping rate
+    shippingPriceRow: '',    // custom Rest of World shipping rate
 };
 
 const AdminProducts = () => {
@@ -90,6 +94,10 @@ const AdminProducts = () => {
             lowStockAlert: String(product.lowStockAlert || '3'),
             minQty: String(product.minQty || '1'),
             weight: String(product.weight || ''),
+            shippingType: product.shippingType || (product.isFreeShipping ? 'free' : ((product.shippingPriceUsa !== undefined && product.shippingPriceUsa !== null) || (product.shippingPriceEurope !== undefined && product.shippingPriceEurope !== null) ? 'custom' : 'default')),
+            shippingPriceEurope: product.shippingPriceEurope !== undefined && product.shippingPriceEurope !== null ? String(product.shippingPriceEurope) : '',
+            shippingPriceUsa: product.shippingPriceUsa !== undefined && product.shippingPriceUsa !== null ? String(product.shippingPriceUsa) : '',
+            shippingPriceRow: product.shippingPriceRow !== undefined && product.shippingPriceRow !== null ? String(product.shippingPriceRow) : '',
             sizes: product.sizes || [], colors: product.colors || [], materials: product.materials || [],
             tags: product.tags || [], images: product.images || [],
             bulkPrices: product.bulkPrices || [],
@@ -118,6 +126,11 @@ const AdminProducts = () => {
             const lowStockValue = parseInt(form.lowStockAlert);
             const minQtyValue = parseInt(form.minQty);
             const weightValue = parseFloat(form.weight);
+
+            const shippingPriceEuropeVal = form.shippingPriceEurope !== '' && !isNaN(parseFloat(form.shippingPriceEurope)) ? parseFloat(form.shippingPriceEurope) : null;
+            const shippingPriceUsaVal = form.shippingPriceUsa !== '' && !isNaN(parseFloat(form.shippingPriceUsa)) ? parseFloat(form.shippingPriceUsa) : null;
+            const shippingPriceRowVal = form.shippingPriceRow !== '' && !isNaN(parseFloat(form.shippingPriceRow)) ? parseFloat(form.shippingPriceRow) : null;
+
             const productData = {
                 ...form,
                 price: parsedPrice,
@@ -126,6 +139,11 @@ const AdminProducts = () => {
                 lowStockAlert: isNaN(lowStockValue) ? 3 : lowStockValue,
                 minQty: isNaN(minQtyValue) ? 1 : minQtyValue,
                 weight: isNaN(weightValue) ? null : weightValue,
+                shippingType: form.shippingType || 'default',
+                shippingPriceEurope: form.shippingType === 'free' ? 0 : (form.shippingType === 'custom' ? (shippingPriceEuropeVal ?? 0) : null),
+                shippingPriceUsa: form.shippingType === 'free' ? 0 : (form.shippingType === 'custom' ? shippingPriceUsaVal : null),
+                shippingPriceRow: form.shippingType === 'free' ? 0 : (form.shippingType === 'custom' ? shippingPriceRowVal : null),
+                isFreeShipping: form.shippingType === 'free',
                 dimensions: {
                     length: form.dimensions.length ? parseFloat(form.dimensions.length) : null,
                     breadth: form.dimensions.breadth ? parseFloat(form.dimensions.breadth) : null,
@@ -262,6 +280,115 @@ const AdminProducts = () => {
                 ); })}
                 <button type="button" className="wiz-add-tier-btn" onClick={addPricingTier}><FiPlus size={16} /> Add a pricing tier</button>
             </div>
+
+            {/* Product Shipping Pricing */}
+            <div className="ap-section">
+                <h3 className="ap-section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FiTruck size={18} /> Shipping Pricing for this Product
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '-4px 0 12px 0' }}>
+                    Set shipping charges for this specific product or use automatic weight tiers.
+                </p>
+
+                <div className="ap-shipping-mode-cards">
+                    <div
+                        className={`ap-shipping-mode-card ${form.shippingType === 'default' ? 'active' : ''}`}
+                        onClick={() => setForm({ ...form, shippingType: 'default' })}
+                    >
+                        <div className="ap-shipping-mode-header">
+                            <span>🌐</span> Store Defaults (Auto)
+                        </div>
+                        <p className="ap-shipping-mode-desc">
+                            Europe Free (€0). USA & Rest of World calculated automatically by parcel weight.
+                        </p>
+                    </div>
+
+                    <div
+                        className={`ap-shipping-mode-card ${form.shippingType === 'custom' ? 'active' : ''}`}
+                        onClick={() => setForm({ ...form, shippingType: 'custom' })}
+                    >
+                        <div className="ap-shipping-mode-header">
+                            <span>✏️</span> Custom Shipping Rates
+                        </div>
+                        <p className="ap-shipping-mode-desc">
+                            Set specific shipping charges for Europe, USA, or Rest of World for this product.
+                        </p>
+                    </div>
+
+                    <div
+                        className={`ap-shipping-mode-card ${form.shippingType === 'free' ? 'active' : ''}`}
+                        onClick={() => setForm({ ...form, shippingType: 'free' })}
+                    >
+                        <div className="ap-shipping-mode-header">
+                            <span>🎁</span> 100% Free Shipping
+                        </div>
+                        <p className="ap-shipping-mode-desc">
+                            Free worldwide delivery for this product (promotion / special offer).
+                        </p>
+                    </div>
+                </div>
+
+                {form.shippingType === 'custom' && (
+                    <div className="ap-shipping-inputs-grid">
+                        <div className="ap-field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.78rem' }}>🇪🇺 Europe Shipping (€)</label>
+                            <div className="wiz-input-prefix">
+                                <span className="wiz-prefix">€</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="0.00 (0 = Free)"
+                                    value={form.shippingPriceEurope}
+                                    onChange={e => setForm({ ...form, shippingPriceEurope: e.target.value })}
+                                />
+                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0 = Free European Delivery</span>
+                        </div>
+
+                        <div className="ap-field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.78rem' }}>🇺🇸 USA Shipping (€)</label>
+                            <div className="wiz-input-prefix">
+                                <span className="wiz-prefix">€</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="e.g. 45.00"
+                                    value={form.shippingPriceUsa}
+                                    onChange={e => setForm({ ...form, shippingPriceUsa: e.target.value })}
+                                />
+                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom USA rate for this item</span>
+                        </div>
+
+                        <div className="ap-field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.78rem' }}>🌐 Rest of World (€)</label>
+                            <div className="wiz-input-prefix">
+                                <span className="wiz-prefix">€</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="e.g. 30.00"
+                                    value={form.shippingPriceRow}
+                                    onChange={e => setForm({ ...form, shippingPriceRow: e.target.value })}
+                                />
+                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>International</span>
+                        </div>
+                    </div>
+                )}
+
+                {form.shippingType === 'default' && (
+                    <div className="ap-shipping-preview-box">
+                        <FiTruck size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                        <span>
+                            Weight matching active: At <strong>{form.weight ? `${form.weight} KG` : '0.8 KG (Default)'}</strong>, USA shipping will use your store's weight tiers configured in Admin Settings. Europe is <strong>FREE (€0.00)</strong>.
+                        </span>
+                    </div>
+                )}
+            </div>
         </div>
     );
 
@@ -271,7 +398,7 @@ const AdminProducts = () => {
             <div className="ap-section">
                 <div className="ap-media-upload"><div className="ap-upload-zone"><FiImage size={28} /><p>Click or drag to upload images & videos</p><span>JPG, PNG, WEBP, MP4 - Max 10MB each</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={(e) => { if (e.target.files) { const files = Array.from(e.target.files); const newItems = files.map(file => ({ id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, type: 'file', value: file, preview: URL.createObjectURL(file) })); setMediaItems(prev => [...prev, ...newItems]); } }} /></div></div>
                 <div className="ap-youtube-upload" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}><input type="text" placeholder="Paste YouTube Video Link here..." value={youtubeInput} onChange={e => setYoutubeInput(e.target.value)} style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-color)', color: 'var(--text-color)' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addYoutubeLink(); } }} /><button type="button" className="btn btn-secondary" onClick={addYoutubeLink} style={{ padding: '0 20px', whiteSpace: 'nowrap' }}>Add Link</button></div>
-                {mediaItems.length > 0 && (<div className="ap-media-grid">{mediaItems.map((item, i) => { const isCover = i === 0; return (<motion.div key={item.id} layout className={`ap-media-item ${item.type === 'file' ? 'ap-media-new' : ''}`} style={{ position: 'relative', cursor: draggedIndex === i ? 'grabbing' : 'grab', opacity: draggedIndex === i ? 0.4 : 1, transition: draggedIndex === i ? 'none' : 'opacity 0.2s, transform 0.2s' }} draggable onDragStart={(e) => handleDragStart(e, i)} onDragOver={(e) => handleDragOver(e, i)} onDragEnd={handleDragEnd}>{item.type === 'url' ? (<><SmartMedia src={item.value} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} isThumbnail={true} />{(isVideoUrl(item.value) || isYouTubeUrl(item.value)) && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: '#fff', fontSize: '24px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>\u25b6</div>)}</>) : (item.value.type.startsWith('video/') ? (<video src={item.preview} muted className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<img src={item.preview} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />))}{!isCover && (<div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '6px', zIndex: 10 }}><button type="button" onClick={() => setAsCover(i)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', cursor: 'pointer', padding: '3px 10px', borderRadius: '4px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 'bold', lineHeight: 1 }} title="Set as Cover">Set Cover</button></div>)}<button type="button" className="ap-media-remove" onClick={() => removeMediaItem(item.id)}><FiX size={12} /></button>{isCover && <span className="ap-media-badge" style={{ position: 'absolute', top: '4px', left: '4px', bottom: 'auto' }}>Cover</span>}{item.type === 'file' && <span className="ap-media-badge new" style={{ position: 'absolute', top: '4px', left: isCover ? '55px' : '4px', bottom: 'auto' }}>New</span>}</motion.div>); })}</div>)}
+                {mediaItems.length > 0 && (<div className="ap-media-grid">{mediaItems.map((item, i) => { const isCover = i === 0; return (<motion.div key={item.id} layout className={`ap-media-item ${item.type === 'file' ? 'ap-media-new' : ''}`} style={{ position: 'relative', cursor: draggedIndex === i ? 'grabbing' : 'grab', opacity: draggedIndex === i ? 0.4 : 1, transition: draggedIndex === i ? 'none' : 'opacity 0.2s, transform 0.2s' }} draggable onDragStart={(e) => handleDragStart(e, i)} onDragOver={(e) => handleDragOver(e, i)} onDragEnd={handleDragEnd}>{item.type === 'url' ? (<><SmartMedia src={item.value} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} isThumbnail={true} />{(isVideoUrl(item.value) || isYouTubeUrl(item.value)) && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: '#fff', fontSize: '24px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>▶</div>)}</>) : (item.value.type.startsWith('video/') ? (<video src={item.preview} muted className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<img src={item.preview} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />))}{!isCover && (<div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '6px', zIndex: 10 }}><button type="button" onClick={() => setAsCover(i)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', cursor: 'pointer', padding: '3px 10px', borderRadius: '4px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 'bold', lineHeight: 1 }} title="Set as Cover">Set Cover</button></div>)}<button type="button" className="ap-media-remove" onClick={() => removeMediaItem(item.id)}><FiX size={12} /></button>{isCover && <span className="ap-media-badge" style={{ position: 'absolute', top: '4px', left: '4px', bottom: 'auto' }}>Cover</span>}{item.type === 'file' && <span className="ap-media-badge new" style={{ position: 'absolute', top: '4px', left: isCover ? '55px' : '4px', bottom: 'auto' }}>New</span>}</motion.div>); })}</div>)}
             </div>
         </div>
     );
@@ -281,7 +408,107 @@ const AdminProducts = () => {
             <h3 className="wiz-step-title">Details & Publish</h3>
             <div className="ap-section"><h3 className="ap-section-title">Colors</h3><div className="ap-color-grid">{COLORS.map(color => (<button key={color.name} type="button" className={`ap-color-swatch ${form.colors.includes(color.name) ? 'active' : ''}`} onClick={() => toggleArray('colors', color.name)} title={color.name}><span className="ap-swatch" style={{ background: color.hex }} /><span className="ap-color-label">{color.name}</span></button>))}</div></div>
             <div className="ap-section"><h3 className="ap-section-title">Material / Fabric</h3><div className="ap-chip-grid">{MATERIALS.map(mat => (<button key={mat} type="button" className={`ap-chip ${form.materials.includes(mat) ? 'active' : ''}`} onClick={() => toggleArray('materials', mat)}>{mat}</button>))}</div></div>
-            <div className="ap-section"><h3 className="ap-section-title">Shipping Details</h3><div className="ap-row"><div className="ap-field"><label>Weight (kg)</label><input type="number" step="0.1" min="0" value={form.weight} onChange={e => setForm({ ...form, weight: e.target.value })} placeholder="0.0" /></div></div><div className="ap-row ap-row-3"><div className="ap-field"><label>Length (cm)</label><input type="number" min="0" value={form.dimensions.length} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, length: e.target.value } })} placeholder="0" /></div><div className="ap-field"><label>Breadth (cm)</label><input type="number" min="0" value={form.dimensions.breadth} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, breadth: e.target.value } })} placeholder="0" /></div><div className="ap-field"><label>Height (cm)</label><input type="number" min="0" value={form.dimensions.height} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, height: e.target.value } })} placeholder="0" /></div></div></div>
+            
+            <div className="ap-section">
+                <h3 className="ap-section-title">Shipping & Parcel Details</h3>
+                <div className="ap-row">
+                    <div className="ap-field">
+                        <label>Weight (kg) *</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={form.weight}
+                            onChange={e => setForm({ ...form, weight: e.target.value })}
+                            placeholder="0.8"
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            Used for USA weight tiers (e.g. 10 kg, 20 kg) & Courier Booking
+                        </span>
+                    </div>
+                </div>
+
+                {/* Shipping Mode & Rates */}
+                <div style={{ marginTop: '12px' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Product Shipping Price</label>
+                    <div className="ap-shipping-mode-cards" style={{ marginTop: '6px' }}>
+                        <div
+                            className={`ap-shipping-mode-card ${form.shippingType === 'default' ? 'active' : ''}`}
+                            onClick={() => setForm({ ...form, shippingType: 'default' })}
+                        >
+                            <div className="ap-shipping-mode-header"><span>🌐</span> Store Defaults</div>
+                            <p className="ap-shipping-mode-desc">Europe Free, USA auto by weight</p>
+                        </div>
+                        <div
+                            className={`ap-shipping-mode-card ${form.shippingType === 'custom' ? 'active' : ''}`}
+                            onClick={() => setForm({ ...form, shippingType: 'custom' })}
+                        >
+                            <div className="ap-shipping-mode-header"><span>✏️</span> Custom Rates</div>
+                            <p className="ap-shipping-mode-desc">Set specific rates for this product</p>
+                        </div>
+                        <div
+                            className={`ap-shipping-mode-card ${form.shippingType === 'free' ? 'active' : ''}`}
+                            onClick={() => setForm({ ...form, shippingType: 'free' })}
+                        >
+                            <div className="ap-shipping-mode-header"><span>🎁</span> Free Shipping</div>
+                            <p className="ap-shipping-mode-desc">Worldwide free delivery</p>
+                        </div>
+                    </div>
+
+                    {form.shippingType === 'custom' && (
+                        <div className="ap-shipping-inputs-grid">
+                            <div className="ap-field" style={{ margin: 0 }}>
+                                <label style={{ fontSize: '0.78rem' }}>🇪🇺 Europe (€)</label>
+                                <div className="wiz-input-prefix">
+                                    <span className="wiz-prefix">€</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        value={form.shippingPriceEurope}
+                                        onChange={e => setForm({ ...form, shippingPriceEurope: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="ap-field" style={{ margin: 0 }}>
+                                <label style={{ fontSize: '0.78rem' }}>🇺🇸 USA (€)</label>
+                                <div className="wiz-input-prefix">
+                                    <span className="wiz-prefix">€</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="e.g. 45.00"
+                                        value={form.shippingPriceUsa}
+                                        onChange={e => setForm({ ...form, shippingPriceUsa: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="ap-field" style={{ margin: 0 }}>
+                                <label style={{ fontSize: '0.78rem' }}>🌐 Rest of World (€)</label>
+                                <div className="wiz-input-prefix">
+                                    <span className="wiz-prefix">€</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="e.g. 30.00"
+                                        value={form.shippingPriceRow}
+                                        onChange={e => setForm({ ...form, shippingPriceRow: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="ap-row ap-row-3" style={{ marginTop: '12px' }}>
+                    <div className="ap-field"><label>Length (cm)</label><input type="number" min="0" value={form.dimensions.length} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, length: e.target.value } })} placeholder="0" /></div>
+                    <div className="ap-field"><label>Breadth (cm)</label><input type="number" min="0" value={form.dimensions.breadth} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, breadth: e.target.value } })} placeholder="0" /></div>
+                    <div className="ap-field"><label>Height (cm)</label><input type="number" min="0" value={form.dimensions.height} onChange={e => setForm({ ...form, dimensions: { ...form.dimensions, height: e.target.value } })} placeholder="0" /></div>
+                </div>
+            </div>
             <div className="ap-section"><h3 className="ap-section-title">Tags</h3><div className="ap-field"><div className="ap-tags-input-wrap">{form.tags.map(tag => (<span key={tag} className="ap-tag">{tag} <button onClick={() => removeTag(tag)}><FiX size={10} /></button></span>))}<input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput); } }} placeholder="Type & press Enter..." className="ap-tag-input" /></div><div className="ap-quick-tags">{PRODUCT_TAGS.filter(t => !form.tags.includes(t)).slice(0, 12).map(tag => (<button key={tag} type="button" className="ap-quick-tag" onClick={() => addTag(tag)}>+ {tag}</button>))}</div></div></div>
             <div className="ap-section"><h3 className="ap-section-title">Visibility</h3><div className="ap-row"><div className="ap-field"><div className="ap-visibility-group">{VISIBILITY_OPTIONS.map(v => (<button key={v.value} type="button" className={`ap-visibility-btn ${form.visibility === v.value ? 'active' : ''}`} onClick={() => setForm({ ...form, visibility: v.value })}>{v.icon} {v.label}</button>))}</div></div><div className="ap-field"><label className="ap-checkbox-label"><input type="checkbox" checked={form.featured} onChange={e => setForm({ ...form, featured: e.target.checked })} /><FiStar size={14} /> Featured Product</label></div></div></div>
         </div>
@@ -294,18 +521,31 @@ const AdminProducts = () => {
             <div className="admin-table-header" style={{ background: 'none', border: 'none', padding: '0', marginBottom: 'var(--space-4)' }}><h1 className="admin-page-title" style={{ marginBottom: 0 }}>Products</h1><button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Product</button></div>
             <div className="ap-filter-bar"><div className="ap-search-box"><FiSearch size={16} /><input type="text" placeholder="Search products or brands..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div><select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="ap-filter-select"><option value="all">All Categories</option>{defaultCategories.map(c => <option key={c.slug} value={c.slug}>{c.icon} {c.name}</option>)}</select><div className="ap-product-count">{filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}</div></div>
 
-            <div className="admin-table-container"><table className="admin-table"><thead><tr><th style={{ width: '50px' }}></th><th>Product</th><th>Brand</th><th>Category</th><th>Price</th><th>Stock</th><th>Grade</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-                {loading ? (<tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading products...</td></tr>
-                ) : filteredProducts.length === 0 ? (<tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No products found</td></tr>
+            <div className="admin-table-container"><table className="admin-table"><thead><tr><th style={{ width: '50px' }}></th><th>Product</th><th>Brand</th><th>Category</th><th>Price</th><th>Shipping</th><th>Stock</th><th>Grade</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+                {loading ? (<tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading products...</td></tr>
+                ) : filteredProducts.length === 0 ? (<tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No products found</td></tr>
                 ) : filteredProducts.map(product => (
                     <tr key={product.id} className="ap-product-row">
                         <td className="ap-td-img">{product.images?.[0] ? (<SmartMedia src={product.images[0]} alt="" className="ap-table-thumb" style={{ objectFit: 'cover' }} videoProps={{ autoPlay: false }} />) : <div className="ap-table-thumb ap-no-img"><FiImage size={16} /></div>}</td>
                         <td className="ap-td-name"><strong>{product.name}</strong>{product.featured && <FiStar size={12} style={{ color: '#ECC94B', marginLeft: 6 }} />}</td>
-                        <td className="ap-td-brand"><span className="ap-brand-badge">{product.brand || '\u2014'}</span></td>
+                        <td className="ap-td-brand"><span className="ap-brand-badge">{product.brand || '—'}</span></td>
                         <td className="ap-td-category">{defaultCategories.find(c => c.slug === product.category)?.name || product.category}</td>
                         <td className="ap-td-price"><strong>{formatPrice(product.price, product.currency)}</strong>{product.comparePrice && <span className="ap-compare-price">{formatPrice(product.comparePrice, product.currency)}</span>}</td>
+                        <td className="ap-td-shipping">
+                            {product.shippingType === 'free' || product.isFreeShipping ? (
+                                <span className="ap-shipping-table-badge free">🎁 Free</span>
+                            ) : product.shippingType === 'custom' ? (
+                                <span className="ap-shipping-table-badge custom" title={`EU: €${product.shippingPriceEurope ?? 0} | USA: €${product.shippingPriceUsa ?? 'Auto'}`}>
+                                    ✈️ {product.shippingPriceUsa !== null && product.shippingPriceUsa !== undefined ? `USA €${product.shippingPriceUsa}` : 'Custom'}
+                                </span>
+                            ) : (
+                                <span className="ap-shipping-table-badge default" title="Calculated from store settings & weight">
+                                    🚚 Auto {product.weight ? `(${product.weight}kg)` : ''}
+                                </span>
+                            )}
+                        </td>
                         <td className="ap-td-stock"><span className={`ap-stock-badge ${(product.stock || 0) <= (product.lowStockAlert || 3) ? 'low' : ''}`}>{product.stock || 0}</span></td>
-                        <td className="ap-td-grade">{product.grade ? <span className="wiz-grade-table-badge">{product.grade}</span> : '\u2014'}</td>
+                        <td className="ap-td-grade">{product.grade ? <span className="wiz-grade-table-badge">{product.grade}</span> : '—'}</td>
                         <td className="ap-td-status"><span className={`ap-visibility-dot ${product.visibility || 'active'}`}>{VISIBILITY_OPTIONS.find(v => v.value === (product.visibility || 'active'))?.icon}</span></td>
                         <td className="ap-td-actions"><div className="admin-table-actions"><button className="btn btn-ghost btn-sm" onClick={() => openEdit(product)}><FiEdit size={14} /></button><button className="btn btn-ghost btn-sm" onClick={() => handleDelete(product.id)} style={{ color: 'var(--error)' }}><FiTrash2 size={14} /></button></div></td>
                     </tr>

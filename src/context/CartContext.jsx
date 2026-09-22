@@ -93,6 +93,11 @@ export const CartProvider = ({ children }) => {
                 size,
                 quantity,
                 weight: product.weight || null,
+                shippingType: product.shippingType || (product.isFreeShipping ? 'free' : 'default'),
+                shippingPriceEurope: product.shippingPriceEurope ?? null,
+                shippingPriceUsa: product.shippingPriceUsa ?? null,
+                shippingPriceRow: product.shippingPriceRow ?? null,
+                isFreeShipping: !!product.isFreeShipping || product.shippingType === 'free',
             },
         });
     };
