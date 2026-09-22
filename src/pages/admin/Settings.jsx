@@ -784,18 +784,18 @@ const AdminSettings = () => {
                         <label>
                             Sender Email (From)
                             <input
-                                value={settings.emailNotifications?.senderEmail || 'shivamajayverma@gmail.com'}
+                                value={settings.emailNotifications?.senderEmail || 'secondthriftt39@gmail.com'}
                                 onChange={e => updateEmailNotification('senderEmail', e.target.value)}
-                                placeholder="shivamajayverma@gmail.com"
+                                placeholder="secondthriftt39@gmail.com"
                             />
                         </label>
 
                         <label>
                             Admin Notification Email
                             <input
-                                value={settings.emailNotifications?.adminNotificationEmail || 'shivamajayverma@gmail.com'}
+                                value={settings.emailNotifications?.adminNotificationEmail || 'secondthriftt39@gmail.com'}
                                 onChange={e => updateEmailNotification('adminNotificationEmail', e.target.value)}
-                                placeholder="shivamajayverma@gmail.com"
+                                placeholder="secondthriftt39@gmail.com"
                             />
                         </label>
 
