@@ -319,6 +319,22 @@ const AdminProducts = () => {
                 {form.shippingType === 'custom' && (
                     <div className="ap-shipping-inputs-grid">
                         <div className="ap-field" style={{ margin: 0 }}>
+                            <label style={{ fontSize: '0.78rem' }}>⚖️ Custom Weight (KG)</label>
+                            <div className="wiz-input-suffix">
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="e.g. 10.0"
+                                    value={form.weight}
+                                    onChange={e => setForm({ ...form, weight: e.target.value })}
+                                />
+                                <span className="wiz-suffix">KG</span>
+                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom parcel or bale weight</span>
+                        </div>
+
+                        <div className="ap-field" style={{ margin: 0 }}>
                             <label style={{ fontSize: '0.78rem' }}>🇪🇺 Europe Shipping (€)</label>
                             <div className="wiz-input-prefix">
                                 <span className="wiz-prefix">€</span>
@@ -367,6 +383,26 @@ const AdminProducts = () => {
                         </div>
                     </div>
                 )}
+
+                {form.shippingType === 'free' && (
+                    <div style={{ marginTop: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '14px', borderRadius: '10px' }}>
+                        <div className="ap-field" style={{ margin: 0, maxWidth: '240px' }}>
+                            <label style={{ fontSize: '0.78rem' }}>⚖️ Custom Weight (KG)</label>
+                            <div className="wiz-input-suffix">
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    placeholder="e.g. 10.0"
+                                    value={form.weight}
+                                    onChange={e => setForm({ ...form, weight: e.target.value })}
+                                />
+                                <span className="wiz-suffix">KG</span>
+                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom parcel or bale weight</span>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -390,33 +426,17 @@ const AdminProducts = () => {
             
             <div className="ap-section">
                 <h3 className="ap-section-title">Shipping & Parcel Details</h3>
-                <div className="ap-row">
-                    <div className="ap-field">
-                        <label>Weight (kg) *</label>
-                        <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={form.weight}
-                            onChange={e => setForm({ ...form, weight: e.target.value })}
-                            placeholder="0.8"
-                        />
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            Used for USA weight tiers (e.g. 10 kg, 20 kg) & Courier Booking
-                        </span>
-                    </div>
-                </div>
-
+                
                 {/* Shipping Mode & Rates */}
-                <div style={{ marginTop: '12px' }}>
-                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Product Shipping Price</label>
+                <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Product Shipping Price & Weight</label>
                     <div className="ap-shipping-mode-cards" style={{ marginTop: '6px' }}>
                         <div
                             className={`ap-shipping-mode-card ${form.shippingType === 'custom' ? 'active' : ''}`}
                             onClick={() => setForm({ ...form, shippingType: 'custom' })}
                         >
                             <div className="ap-shipping-mode-header"><span>✏️</span> Custom Rates</div>
-                            <p className="ap-shipping-mode-desc">Set specific rates for this product</p>
+                            <p className="ap-shipping-mode-desc">Set specific rates and weight for this product</p>
                         </div>
                         <div
                             className={`ap-shipping-mode-card ${form.shippingType === 'free' ? 'active' : ''}`}
@@ -430,6 +450,22 @@ const AdminProducts = () => {
                     {form.shippingType === 'custom' && (
                         <div className="ap-shipping-inputs-grid">
                             <div className="ap-field" style={{ margin: 0 }}>
+                                <label style={{ fontSize: '0.78rem' }}>⚖️ Custom Weight (KG)</label>
+                                <div className="wiz-input-suffix">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        placeholder="e.g. 10.0"
+                                        value={form.weight}
+                                        onChange={e => setForm({ ...form, weight: e.target.value })}
+                                    />
+                                    <span className="wiz-suffix">KG</span>
+                                </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom parcel or bale weight</span>
+                            </div>
+
+                            <div className="ap-field" style={{ margin: 0 }}>
                                 <label style={{ fontSize: '0.78rem' }}>🇪🇺 Europe (€)</label>
                                 <div className="wiz-input-prefix">
                                     <span className="wiz-prefix">€</span>
@@ -442,7 +478,9 @@ const AdminProducts = () => {
                                         onChange={e => setForm({ ...form, shippingPriceEurope: e.target.value })}
                                     />
                                 </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0 = Free Delivery</span>
                             </div>
+
                             <div className="ap-field" style={{ margin: 0 }}>
                                 <label style={{ fontSize: '0.78rem' }}>🇺🇸 USA (€)</label>
                                 <div className="wiz-input-prefix">
@@ -456,7 +494,9 @@ const AdminProducts = () => {
                                         onChange={e => setForm({ ...form, shippingPriceUsa: e.target.value })}
                                     />
                                 </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>USA Shipping</span>
                             </div>
+
                             <div className="ap-field" style={{ margin: 0 }}>
                                 <label style={{ fontSize: '0.78rem' }}>🌐 Rest of World (€)</label>
                                 <div className="wiz-input-prefix">
@@ -470,6 +510,27 @@ const AdminProducts = () => {
                                         onChange={e => setForm({ ...form, shippingPriceRow: e.target.value })}
                                     />
                                 </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>International</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {form.shippingType === 'free' && (
+                        <div style={{ marginTop: '10px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '14px', borderRadius: '10px' }}>
+                            <div className="ap-field" style={{ margin: 0, maxWidth: '240px' }}>
+                                <label style={{ fontSize: '0.78rem' }}>⚖️ Custom Weight (KG)</label>
+                                <div className="wiz-input-suffix">
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        placeholder="e.g. 10.0"
+                                        value={form.weight}
+                                        onChange={e => setForm({ ...form, weight: e.target.value })}
+                                    />
+                                    <span className="wiz-suffix">KG</span>
+                                </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom parcel or bale weight</span>
                             </div>
                         </div>
                     )}
