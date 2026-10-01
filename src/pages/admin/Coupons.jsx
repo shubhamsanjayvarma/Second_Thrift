@@ -10,6 +10,7 @@ import {
     subscribeToCoupons, createCoupon, updateCoupon,
     deleteCoupon, toggleCouponStatus
 } from '../../services/coupons';
+import { CalendarPicker } from '../../components/common/CalendarPicker';
 import './Admin.css';
 
 const PREDEFINED_CATEGORIES = [
@@ -759,30 +760,24 @@ const AdminCoupons = () => {
                                 </div>
 
                                 {/* Schedule & Expiry Timestamps */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--admin-text-muted)', marginBottom: '6px' }}>
-                                            Start Date & Time (Optional)
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={form.startDate}
-                                            onChange={e => setForm({ ...form, startDate: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--admin-border)', borderRadius: '8px', color: '#fff', fontSize: '0.82rem' }}
-                                        />
-                                    </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                                    <CalendarPicker
+                                        label="Start Date & Time (Optional)"
+                                        placeholder="Pick start date & time..."
+                                        type="start"
+                                        align="left"
+                                        value={form.startDate}
+                                        onChange={(val) => setForm({ ...form, startDate: val })}
+                                    />
 
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--admin-text-muted)', marginBottom: '6px' }}>
-                                            Expiry Date & Time (Optional)
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={form.expiryDate}
-                                            onChange={e => setForm({ ...form, expiryDate: e.target.value })}
-                                            style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--admin-border)', borderRadius: '8px', color: '#fff', fontSize: '0.82rem' }}
-                                        />
-                                    </div>
+                                    <CalendarPicker
+                                        label="Expiry Date & Time (Optional)"
+                                        placeholder="Pick expiry date & time..."
+                                        type="expiry"
+                                        align="right"
+                                        value={form.expiryDate}
+                                        onChange={(val) => setForm({ ...form, expiryDate: val })}
+                                    />
                                 </div>
 
                                 {/* Usage Limits */}
