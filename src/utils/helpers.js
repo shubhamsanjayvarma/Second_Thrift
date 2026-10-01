@@ -415,30 +415,73 @@ export const slugify = (text) => {
         .replace(/^-+|-+$/g, '');
 };
 
-// Check if a media URL is a video (including YouTube clips)
+// Clean & extract URL or iframe source from user input (even if mixed with text or HTML)
+export const extractMediaUrl = (input) => {
+    if (!input || typeof input !== 'string') return '';
+    let str = input.trim();
+    if (str.startsWith('data:') || str.startsWith('/api/media/')) {
+        return str;
+    }
+    // Check if input is an <iframe> embed code
+    const iframeMatch = str.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i);
+    if (iframeMatch) {
+        str = iframeMatch[1];
+    }
+    // Clean trailing punctuation or brackets before matching URL
+    str = str.replace(/[),;.]+$/, '');
+    // If it starts with www. or youtu.be or youtube.com without protocol, add https://
+    if (/^(?:www\.|youtu\.be|youtube\.com|vimeo\.com)/i.test(str)) {
+        str = 'https://' + str;
+    }
+    // If accompanied by note text (e.g. "Vintage Jeans https://youtu.be/..."), extract the URL
+    const urlMatch = str.match(/https?:\/\/[^\s"']+/i);
+    if (urlMatch) {
+        str = urlMatch[0];
+    }
+    return str.replace(/[),;.]+$/, '');
+};
+
+// Check if URL is a YouTube link (watch, youtu.be, shorts, embed, live, or 11-char ID)
+export const isYouTubeUrl = (url) => {
+    if (!url) return false;
+    const clean = extractMediaUrl(url);
+    if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return true;
+    return /youtube\.com|youtu\.be/i.test(clean);
+};
+
+// Check if a media URL is a video (including YouTube clips, MP4, WebM, Vimeo, Drive, etc.)
 export const isVideoUrl = (url) => {
     if (!url) return false;
-    // Check common video file extensions (with or without query params)
-    if (/\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i.test(url)) return true;
-    // Check if URL contains video content-type hint
-    if (/video/i.test(url)) return true;
-    // Check if YouTube
-    if (isYouTubeUrl(url)) return true;
+    const clean = extractMediaUrl(url);
+    if (/\.(mp4|webm|mov|avi|mkv|m4v)(\?.*)?$/i.test(clean)) return true;
+    if (/video/i.test(clean)) return true;
+    if (isYouTubeUrl(clean)) return true;
+    if (/vimeo\.com|drive\.google\.com\/file\/d/i.test(clean)) return true;
     return false;
 };
 
-// Check if URL is a YouTube link
-export const isYouTubeUrl = (url) => {
-    if (!url) return false;
-    return /youtube\.com|youtu\.be/i.test(url);
-};
-
-// Extract YouTube video ID
+// Extract YouTube video ID from any YouTube URL format or standalone ID
 export const getYouTubeId = (url) => {
     if (!url) return null;
-    const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/|live\/)([^#&?]{11})/i;
-    const match = url.match(regExp);
+    const clean = extractMediaUrl(url);
+    if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return clean;
+    const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?(?:.*&)?v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i;
+    const match = clean.match(regExp);
     return match ? match[1] : null;
+};
+
+// Check if a link is a valid web media URL
+export const isValidMediaUrl = (url) => {
+    if (!url) return false;
+    const clean = extractMediaUrl(url);
+    if (!clean) return false;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) return true;
+    try {
+        new URL(clean);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 // Order status labels with colors

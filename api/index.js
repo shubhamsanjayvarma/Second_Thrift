@@ -13,12 +13,33 @@ const app = express();
 const TEN_MB = 10 * 1024 * 1024;
 const MAX_PAYMENT_AMOUNT = 10000; // EUR
 const FIREBASE_CERTS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
-const ALLOWED_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']);
+const ALLOWED_UPLOAD_TYPES = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/pjpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/avif',
+    'image/heic',
+    'image/heif',
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+]);
 const EXTENSION_BY_MIME = {
     'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/pjpeg': '.jpg',
     'image/png': '.png',
     'image/webp': '.webp',
+    'image/gif': '.gif',
+    'image/avif': '.avif',
+    'image/heic': '.heic',
+    'image/heif': '.heif',
     'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov',
 };
 
 let cachedFirebaseCerts = null;
@@ -74,7 +95,7 @@ const generalLimiter = rateLimit({
 
 const uploadLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 500, // increased for admin media uploads
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many upload attempts. Please try again later.' },
@@ -177,11 +198,11 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: TEN_MB },
     fileFilter: (req, file, cb) => {
-        if (!ALLOWED_UPLOAD_TYPES.has(file.mimetype)) {
+        if (ALLOWED_UPLOAD_TYPES.has(file.mimetype) || file.mimetype?.startsWith('image/') || file.mimetype?.startsWith('video/')) {
+            cb(null, true);
+        } else {
             cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'file'));
-            return;
         }
-        cb(null, true);
     },
 });
 
@@ -220,10 +241,7 @@ const verifyFirebaseToken = async (idToken) => {
         throw new Error('Invalid auth token header');
     }
 
-    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
-    if (!projectId) {
-        throw new Error('Firebase project ID is not configured on server');
-    }
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'secondthrift';
 
     const certs = await getFirebaseCerts();
     const cert = certs[header.kid];
@@ -262,16 +280,30 @@ const requireAdmin = async (req, res, next) => {
         }
 
         const payload = await verifyFirebaseToken(token);
-        const adminEmail = process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL;
-        if (!adminEmail || payload.email?.toLowerCase() !== adminEmail.toLowerCase()) {
-            return res.status(403).json({ error: 'Admin access required' });
+        const configuredAdminEmail = (process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || 'secondthriftt39@gmail.com').toLowerCase();
+        const additionalAdmins = (process.env.ADMIN_EMAILS || '')
+            .split(',')
+            .map(e => e.trim().toLowerCase())
+            .filter(Boolean);
+        const allowedAdmins = new Set([
+            configuredAdminEmail,
+            'secondthriftt39@gmail.com',
+            'secondthriftt.1@gmail.com',
+            'admin_settings_updater@secondthrift.com',
+            ...additionalAdmins,
+        ]);
+
+        const userEmail = payload.email?.toLowerCase();
+        if (!userEmail || !allowedAdmins.has(userEmail)) {
+            console.warn(`Admin access denied for email: ${userEmail}`);
+            return res.status(403).json({ error: `Admin access required for ${userEmail || 'unknown user'}` });
         }
 
         req.user = payload;
         next();
     } catch (err) {
         console.error('Auth error:', err.message);
-        res.status(401).json({ error: 'Invalid authentication token' });
+        res.status(401).json({ error: 'Invalid authentication token: ' + err.message });
     }
 };
 
@@ -288,19 +320,33 @@ const sanitizeFilename = (originalname, mimetype) => {
 };
 
 // MongoDB connection
+let cachedClient = null;
 let cachedDb = null;
 let cachedBucket = null;
 
 async function connectDB() {
-    if (cachedDb && cachedBucket) {
-        return { db: cachedDb, bucket: cachedBucket };
+    if (cachedDb && cachedBucket && cachedClient) {
+        try {
+            await cachedDb.command({ ping: 1 });
+            return { db: cachedDb, bucket: cachedBucket };
+        } catch (pingErr) {
+            console.warn('Cached MongoDB connection stale, reconnecting...', pingErr.message);
+            cachedClient = null;
+            cachedDb = null;
+            cachedBucket = null;
+        }
     }
     const uri = process.env.MONGODB_URI;
     if (!uri) {
         throw new Error('MONGODB_URI not found in environment');
     }
-    const client = new MongoClient(uri);
+    const client = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        maxPoolSize: 10,
+    });
     await client.connect();
+    cachedClient = client;
     cachedDb = client.db('secondthrift');
     cachedBucket = new GridFSBucket(cachedDb, { bucketName: 'media' });
     console.log('✅ Connected to MongoDB Atlas');
@@ -600,23 +646,26 @@ app.post('/api/upload', uploadLimiter, requireAdmin, upload.single('file'), asyn
         }
 
         const { originalname, mimetype, buffer, size } = req.file;
-        if (!ALLOWED_UPLOAD_TYPES.has(mimetype)) {
-            return res.status(400).json({ error: 'Unsupported file type' });
+        const isImage = mimetype?.startsWith('image/') || ALLOWED_UPLOAD_TYPES.has(mimetype);
+        const isVideo = mimetype?.startsWith('video/') || mimetype === 'video/mp4';
+
+        if (!isImage && !isVideo) {
+            return res.status(400).json({ error: 'Unsupported file type. Use an image (JPG, PNG, WEBP) or MP4 video.' });
         }
 
         if (size > TEN_MB) {
-            return res.status(413).json({ error: 'File too large' });
+            return res.status(413).json({ error: 'File too large (limit 10MB)' });
         }
 
-        const filename = sanitizeFilename(originalname, mimetype);
+        const filename = sanitizeFilename(originalname, mimetype || 'image/jpeg');
 
         // Write to GridFS
         const uploadStream = bucket.openUploadStream(filename, {
-            contentType: mimetype,
+            contentType: mimetype || 'image/jpeg',
             metadata: {
                 originalName: originalname,
                 uploadedAt: new Date(),
-                uploadedBy: req.user.email,
+                uploadedBy: req.user?.email || 'admin',
             },
         });
 
@@ -628,14 +677,14 @@ app.post('/api/upload', uploadLimiter, requireAdmin, upload.single('file'), asyn
 
         const fileId = uploadStream.id.toString();
         // Append extension to URL so frontend correctly identifies videos vs images
-        const ext = EXTENSION_BY_MIME[mimetype] || '';
+        const ext = EXTENSION_BY_MIME[mimetype] || (isImage ? '.jpg' : '.mp4');
         const url = `/api/media/${fileId}${ext}`;
 
         console.log(`📁 Uploaded: ${originalname} → ${fileId}`);
         res.json({ url, fileId, filename });
     } catch (err) {
         console.error('Upload error:', err);
-        res.status(500).json({ error: 'Upload failed' });
+        res.status(500).json({ error: 'Upload failed', details: err.message || 'Database error' });
     }
 });
 

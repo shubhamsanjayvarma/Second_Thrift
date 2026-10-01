@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiEdit, FiTrash2, FiX, FiImage, FiVideo, FiSearch, FiChevronDown, FiChevronLeft, FiChevronRight, FiTag, FiStar, FiPackage, FiTarget, FiTruck, FiGlobe } from 'react-icons/fi';
 import { useToast } from '../../components/common/Toast';
-import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, GRADES, WAIST_SIZES, CURRENCIES, isYouTubeUrl, isVideoUrl, getProductPieceCount } from '../../utils/helpers';
+import { formatPrice, PRODUCT_CONDITIONS, SIZES, BRANDS, COLORS, MATERIALS, GENDERS, SEASONS, SUBCATEGORIES, PRODUCT_TAGS, VISIBILITY_OPTIONS, GRADES, WAIST_SIZES, CURRENCIES, isYouTubeUrl, isVideoUrl, getProductPieceCount, extractMediaUrl, isValidMediaUrl } from '../../utils/helpers';
 import { defaultCategories } from '../../services/categories';
 import { subscribeToAllProducts, createProduct, updateProduct, deleteProduct } from '../../services/products';
 import { uploadProductMedia } from '../../services/storage';
@@ -32,6 +32,25 @@ const EMPTY_FORM = {
     shippingPriceEurope: '0', // custom EU shipping rate (0 = Free)
     shippingPriceUsa: '',    // custom USA shipping rate
     shippingPriceRow: '',    // custom Rest of World shipping rate
+};
+
+// Strips out undefined values and invalid properties before writing to Firestore
+const cleanObjectForFirestore = (obj) => {
+    if (obj === null || obj === undefined) return null;
+    if (Array.isArray(obj)) {
+        return obj.map(item => cleanObjectForFirestore(item)).filter(item => item !== undefined);
+    }
+    if (typeof obj === 'object' && !(obj instanceof Date) && !obj.nanoseconds && !obj.seconds) {
+        const clean = {};
+        Object.keys(obj).forEach(key => {
+            const val = obj[key];
+            if (val !== undefined) {
+                clean[key] = cleanObjectForFirestore(val);
+            }
+        });
+        return clean;
+    }
+    return obj;
 };
 
 const AdminProducts = () => {
@@ -119,15 +138,30 @@ const AdminProducts = () => {
         if (!form.name || isNaN(parsedPrice)) { toast.error('Name and a valid price are required'); return; }
         setSaving(true);
         try {
-            toast.success('Saving product media...');
-            const uploadedUrls = await Promise.all(
-                mediaItems.map(async (item, index) => {
-                    if (item.type === 'file') {
-                        return await uploadProductMedia(item.file, form.name || 'product', index);
+            toast.info('Saving product media...');
+
+            // Upload any new files sequentially with clear error messages
+            const uploadedUrls = [];
+            for (let i = 0; i < mediaItems.length; i++) {
+                const item = mediaItems[i];
+                const fileToUpload = item.file || (item.value instanceof File || item.value instanceof Blob ? item.value : null);
+                if (item.type === 'file' || fileToUpload) {
+                    if (!fileToUpload) {
+                        console.warn('Item marked as file but no File object found:', item);
+                        continue;
                     }
-                    return item.value;
-                })
-            );
+                    try {
+                        const url = await uploadProductMedia(fileToUpload);
+                        uploadedUrls.push(url);
+                    } catch (uploadErr) {
+                        console.error('File upload error for item', i, uploadErr);
+                        throw new Error(`Image ${i + 1} (${fileToUpload?.name || 'media'}) upload failed: ${uploadErr.message}`);
+                    }
+                } else if (item.value && typeof item.value === 'string') {
+                    const clean = extractMediaUrl(item.value) || item.value;
+                    uploadedUrls.push(clean);
+                }
+            }
             const images = uploadedUrls.filter(Boolean);
 
             const stockValue = parseInt(form.stock);
@@ -141,8 +175,11 @@ const AdminProducts = () => {
             const shippingPriceUsaVal = form.shippingPriceUsa !== '' && !isNaN(parseFloat(form.shippingPriceUsa)) ? parseFloat(form.shippingPriceUsa) : null;
             const shippingPriceRowVal = form.shippingPriceRow !== '' && !isNaN(parseFloat(form.shippingPriceRow)) ? parseFloat(form.shippingPriceRow) : null;
 
-            const productData = {
-                ...form,
+            // Strip doc ID, timestamps from form before updating/creating to avoid Firestore conflicts
+            const { id: _ignoreId, createdAt: _ignoreCreatedAt, updatedAt: _ignoreUpdatedAt, ...rawFormData } = form;
+
+            const productData = cleanObjectForFirestore({
+                ...rawFormData,
                 price: parsedPrice,
                 comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : null,
                 stock: isNaN(stockValue) ? 0 : stockValue,
@@ -156,20 +193,31 @@ const AdminProducts = () => {
                 shippingPriceRow: form.shippingType === 'free' ? 0 : (form.shippingType === 'custom' ? shippingPriceRowVal : null),
                 isFreeShipping: form.shippingType === 'free',
                 dimensions: {
-                    length: form.dimensions.length ? parseFloat(form.dimensions.length) : null,
-                    breadth: form.dimensions.breadth ? parseFloat(form.dimensions.breadth) : null,
-                    height: form.dimensions.height ? parseFloat(form.dimensions.height) : null,
+                    length: form.dimensions?.length ? parseFloat(form.dimensions.length) : null,
+                    breadth: form.dimensions?.breadth ? parseFloat(form.dimensions.breadth) : null,
+                    height: form.dimensions?.height ? parseFloat(form.dimensions.height) : null,
                 },
                 bulkPrices: (form.bulkPrices || []).filter(t => t.minQty && t.price).map(t => ({ minQty: parseInt(t.minQty), price: parseFloat(t.price) })),
                 images,
-            };
-            if (editProduct) { await updateProduct(editProduct.id, productData); toast.success('Product updated!'); }
-            else { await createProduct(productData); toast.success('Product added!'); }
-            setShowForm(false); setWizardStep(0);
+            });
+
+            if (editProduct) { 
+                await updateProduct(editProduct.id, productData); 
+                toast.success('Product updated successfully!'); 
+            } else { 
+                await createProduct(productData); 
+                toast.success('Product added successfully!'); 
+            }
+            setShowForm(false); 
+            setWizardStep(0);
             mediaItems.forEach(item => { if (item.type === 'file' && item.preview) URL.revokeObjectURL(item.preview); });
             setMediaItems([]);
-        } catch (err) { console.error(err); toast.error(err.message || 'Failed to save product/media'); }
-        finally { setSaving(false); }
+        } catch (err) { 
+            console.error('Save product error:', err); 
+            toast.error(err.message || 'Failed to save product/media'); 
+        } finally { 
+            setSaving(false); 
+        }
     };
 
     const handleDelete = async (id) => {
@@ -195,7 +243,19 @@ const AdminProducts = () => {
     const handleDragStart = (e, index) => { if (e.target.tagName === 'BUTTON' || e.target.closest('button')) { e.preventDefault(); return; } setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; };
     const handleDragOver = (e, index) => { e.preventDefault(); if (draggedIndex === null || draggedIndex === index) return; setMediaItems(prev => { const next = [...prev]; const [d] = next.splice(draggedIndex, 1); next.splice(index, 0, d); return next; }); setDraggedIndex(index); };
     const handleDragEnd = () => setDraggedIndex(null);
-    const addYoutubeLink = () => { const link = youtubeInput.trim(); if (!link) return; if (!isYouTubeUrl(link)) { toast.error('Please enter a valid YouTube link'); return; } setMediaItems(prev => [...prev, { id: `youtube-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, type: 'url', value: link }]); setYoutubeInput(''); toast.success('YouTube link added'); };
+
+    const addYoutubeLink = () => { 
+        const link = youtubeInput.trim(); 
+        if (!link) return; 
+        const clean = extractMediaUrl(link);
+        if (!clean || !isValidMediaUrl(clean)) { 
+            toast.error('Please enter a valid video link (YouTube, Shorts, MP4) or media URL'); 
+            return; 
+        } 
+        setMediaItems(prev => [...prev, { id: `media-url-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, type: 'url', value: clean }]); 
+        setYoutubeInput(''); 
+        toast.success(isYouTubeUrl(clean) || isVideoUrl(clean) ? 'Video link added!' : 'Media link added!'); 
+    };
 
     const addPricingTier = () => setForm(prev => ({ ...prev, bulkPrices: [...(prev.bulkPrices || []), { minQty: '', price: '' }] }));
     const updatePricingTier = (index, field, value) => { setForm(prev => { const tiers = [...(prev.bulkPrices || [])]; tiers[index] = { ...tiers[index], [field]: value }; return { ...prev, bulkPrices: tiers }; }); };
@@ -455,9 +515,103 @@ const AdminProducts = () => {
         <div className="wiz-step-content">
             <h3 className="wiz-step-title">Images & Videos</h3>
             <div className="ap-section">
-                <div className="ap-media-upload"><div className="ap-upload-zone"><FiImage size={28} /><p>Click or drag to upload images & videos</p><span>JPG, PNG, WEBP, MP4 - Max 10MB each</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple onChange={(e) => { if (e.target.files) { const files = Array.from(e.target.files); const newItems = files.map(file => ({ id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, type: 'file', value: file, preview: URL.createObjectURL(file) })); setMediaItems(prev => [...prev, ...newItems]); } }} /></div></div>
-                <div className="ap-youtube-upload" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}><input type="text" placeholder="Paste YouTube Video Link here..." value={youtubeInput} onChange={e => setYoutubeInput(e.target.value)} style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-color)', color: 'var(--text-color)' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addYoutubeLink(); } }} /><button type="button" className="btn btn-secondary" onClick={addYoutubeLink} style={{ padding: '0 20px', whiteSpace: 'nowrap' }}>Add Link</button></div>
-                {mediaItems.length > 0 && (<div className="ap-media-grid">{mediaItems.map((item, i) => { const isCover = i === 0; return (<motion.div key={item.id} layout className={`ap-media-item ${item.type === 'file' ? 'ap-media-new' : ''}`} style={{ position: 'relative', cursor: draggedIndex === i ? 'grabbing' : 'grab', opacity: draggedIndex === i ? 0.4 : 1, transition: draggedIndex === i ? 'none' : 'opacity 0.2s, transform 0.2s' }} draggable onDragStart={(e) => handleDragStart(e, i)} onDragOver={(e) => handleDragOver(e, i)} onDragEnd={handleDragEnd}>{item.type === 'url' ? (<><SmartMedia src={item.value} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} videoProps={{ autoPlay: false }} isThumbnail={true} />{(isVideoUrl(item.value) || isYouTubeUrl(item.value)) && (<div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: '#fff', fontSize: '24px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>▶</div>)}</>) : (item.value.type.startsWith('video/') ? (<video src={item.preview} muted className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />) : (<img src={item.preview} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />))}{!isCover && (<div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '6px', zIndex: 10 }}><button type="button" onClick={() => setAsCover(i)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', cursor: 'pointer', padding: '3px 10px', borderRadius: '4px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 'bold', lineHeight: 1 }} title="Set as Cover">Set Cover</button></div>)}<button type="button" className="ap-media-remove" onClick={() => removeMediaItem(item.id)}><FiX size={12} /></button>{isCover && <span className="ap-media-badge" style={{ position: 'absolute', top: '4px', left: '4px', bottom: 'auto' }}>Cover</span>}{item.type === 'file' && <span className="ap-media-badge new" style={{ position: 'absolute', top: '4px', left: isCover ? '55px' : '4px', bottom: 'auto' }}>New</span>}</motion.div>); })}</div>)}
+                <div className="ap-media-upload">
+                    <div className="ap-upload-zone">
+                        <FiImage size={28} />
+                        <p>Click or drag to upload images & videos</p>
+                        <span>JPG, PNG, WEBP, Camera Photos, MP4 - Up to 25MB</span>
+                        <input
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                    const files = Array.from(e.target.files);
+                                    const newItems = files.map(file => ({
+                                        id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                        type: 'file',
+                                        file,
+                                        value: file,
+                                        preview: URL.createObjectURL(file)
+                                    }));
+                                    setMediaItems(prev => [...prev, ...newItems]);
+                                    e.target.value = '';
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+                <div className="ap-youtube-upload" style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <input
+                        type="text"
+                        placeholder="Paste Video Link (YouTube, Shorts, MP4, Vimeo, Embed) or Image URL..."
+                        value={youtubeInput}
+                        onChange={e => setYoutubeInput(e.target.value)}
+                        style={{ flex: 1, padding: '10px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-color)', color: 'var(--text-color)' }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addYoutubeLink(); } }}
+                    />
+                    <button type="button" className="btn btn-secondary" onClick={addYoutubeLink} style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FiVideo size={16} /> Add Video / Link
+                    </button>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    💡 Supports YouTube, Shorts, Vimeo, direct MP4 video URLs, and web images. You can also paste embed code or links copied with notes.
+                </div>
+                {mediaItems.length > 0 && (
+                    <div className="ap-media-grid">
+                        {mediaItems.map((item, i) => {
+                            const isCover = i === 0;
+                            const isVid = (item.value?.type?.startsWith('video/') || item.file?.type?.startsWith('video/'));
+                            return (
+                                <motion.div
+                                    key={item.id}
+                                    layout
+                                    className={`ap-media-item ${item.type === 'file' ? 'ap-media-new' : ''}`}
+                                    style={{
+                                        position: 'relative',
+                                        cursor: draggedIndex === i ? 'grabbing' : 'grab',
+                                        opacity: draggedIndex === i ? 0.4 : 1,
+                                        transition: draggedIndex === i ? 'none' : 'opacity 0.2s, transform 0.2s',
+                                    }}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, i)}
+                                    onDragOver={(e) => handleDragOver(e, i)}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    {item.type === 'url' ? (
+                                        <>
+                                            <SmartMedia
+                                                src={item.value}
+                                                alt=""
+                                                className="ap-media-preview"
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                videoProps={{ autoPlay: false }}
+                                                isThumbnail={true}
+                                            />
+                                            {(isVideoUrl(item.value) || isYouTubeUrl(item.value)) && (
+                                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', color: '#fff', fontSize: '24px', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>▶</div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        isVid ? (
+                                            <video src={item.preview} muted className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <img src={item.preview} alt="" className="ap-media-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        )
+                                    )}
+                                    {!isCover && (
+                                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.5)', padding: '6px', zIndex: 10 }}>
+                                            <button type="button" onClick={() => setAsCover(i)} style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'white', cursor: 'pointer', padding: '3px 10px', borderRadius: '4px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 'bold', lineHeight: 1 }} title="Set as Cover">Set Cover</button>
+                                        </div>
+                                    )}
+                                    <button type="button" className="ap-media-remove" onClick={() => removeMediaItem(item.id)}><FiX size={12} /></button>
+                                    {isCover && <span className="ap-media-badge" style={{ position: 'absolute', top: '4px', left: '4px', bottom: 'auto' }}>Cover</span>}
+                                    {item.type === 'file' && <span className="ap-media-badge new" style={{ position: 'absolute', top: '4px', left: isCover ? '55px' : '4px', bottom: 'auto' }}>New</span>}
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
