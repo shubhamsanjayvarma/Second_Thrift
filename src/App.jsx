@@ -37,7 +37,7 @@ const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/Products'));
 const AdminOrders = lazy(() => import('./pages/admin/Orders'));
-
+const AdminCoupons = lazy(() => import('./pages/admin/Coupons'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 
@@ -96,6 +96,7 @@ function App() {
                   <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
                   <Route path="products" element={<Suspense fallback={<PageLoader />}><AdminProducts /></Suspense>} />
                   <Route path="orders" element={<Suspense fallback={<PageLoader />}><AdminOrders /></Suspense>} />
+                  <Route path="coupons" element={<Suspense fallback={<PageLoader />}><AdminCoupons /></Suspense>} />
                   <Route path="users" element={<Suspense fallback={<PageLoader />}><AdminUsers /></Suspense>} />
 
                 </Route>

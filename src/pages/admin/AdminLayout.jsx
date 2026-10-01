@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiGrid, FiPackage, FiShoppingBag, FiUsers, FiLogOut, FiMenu, FiX, FiHome } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingBag, FiUsers, FiLogOut, FiMenu, FiX, FiHome, FiTag } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { signOutUser } from '../../services/auth';
 import logo from '../../assets/logo-text.png';
@@ -46,6 +46,7 @@ const AdminLayout = () => {
         { to: '/admin', icon: <FiGrid />, label: 'Dashboard', exact: true },
         { to: '/admin/products', icon: <FiPackage />, label: 'Products' },
         { to: '/admin/orders', icon: <FiShoppingBag />, label: 'Orders' },
+        { to: '/admin/coupons', icon: <FiTag />, label: 'Coupons' },
         { to: '/admin/users', icon: <FiUsers />, label: 'Users' },
     ];
 

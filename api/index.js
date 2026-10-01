@@ -486,6 +486,16 @@ const buildOrderConfirmationHtml = (order) => {
                                         ${formatEur(order.subtotal || order.total)}
                                     </td>
                                 </tr>
+                                ${(order.couponDiscount > 0 || order.coupon?.discountAmount > 0) ? `
+                                <tr>
+                                    <td style="padding: 6px 0; font-size: 14px; color: #10b981;">
+                                        Coupon Discount (${order.couponCode || order.coupon?.code || 'PROMO'}):
+                                    </td>
+                                    <td style="padding: 6px 0; font-size: 14px; text-align: right; font-weight: 700; color: #10b981;">
+                                        - ${formatEur(order.couponDiscount || order.coupon?.discountAmount)}
+                                    </td>
+                                </tr>
+                                ` : ''}
                                 <tr>
                                     <td style="padding: 6px 0; font-size: 14px; color: #a1a1aa;">
                                         Shipping (${order.shippingLabel || 'Standard Delivery'}):
@@ -793,7 +803,12 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
             return res.status(500).json({ error: 'Stripe is not configured on the server' });
         }
 
-        const { orderId, items, total, currency = 'EUR', customerEmail, successUrl, cancelUrl, shipping = 0, shippingCountry = '', shippingLabel = '', shippingAddress, subtotal } = req.body;
+        const {
+            orderId, items, total, currency = 'EUR', customerEmail,
+            successUrl, cancelUrl, shipping = 0, shippingCountry = '',
+            shippingLabel = '', shippingAddress, subtotal,
+            couponCode = '', couponDiscount = 0, couponLabel = ''
+        } = req.body;
 
         if (!orderId || typeof orderId !== 'string') {
             return res.status(400).json({ error: 'Missing or invalid orderId' });
@@ -801,6 +816,7 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
 
         const totalNumber = Number(total);
         const currencyCode = String(currency).trim().toLowerCase();
+        const discountAmountNumber = Number(couponDiscount || 0);
 
         if (!Number.isFinite(totalNumber) || totalNumber <= 0 || totalNumber > MAX_PAYMENT_AMOUNT) {
             return res.status(400).json({ error: `Amount must be between 0 and ${MAX_PAYMENT_AMOUNT}` });
@@ -827,6 +843,9 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
                         shippingCountry,
                         shippingLabel,
                         shippingAddress: shippingAddress || {},
+                        couponCode: String(couponCode || ''),
+                        couponDiscount: discountAmountNumber,
+                        couponLabel: String(couponLabel || ''),
                         updatedAt: new Date(),
                     },
                     $setOnInsert: { createdAt: new Date() }
@@ -878,6 +897,25 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
             });
         }
 
+        // Create Stripe one-time discount if coupon applied
+        let discounts = undefined;
+        if (discountAmountNumber > 0) {
+            const discountCents = Math.round(discountAmountNumber * 100);
+            if (discountCents > 0) {
+                try {
+                    const stripeCoupon = await stripe.coupons.create({
+                        amount_off: discountCents,
+                        currency: currencyCode,
+                        duration: 'once',
+                        name: couponCode ? `Coupon: ${couponCode}` : 'Promotional Discount',
+                    });
+                    discounts = [{ coupon: stripeCoupon.id }];
+                } catch (couponErr) {
+                    console.warn('Could not create Stripe coupon, passing discount in metadata:', couponErr.message);
+                }
+            }
+        }
+
         // Fallback: if no line items, create a single item
         if (lineItems.length === 0) {
             lineItems.push({
@@ -896,7 +934,12 @@ app.post('/api/stripe/create-checkout-session', paymentLimiter, async (req, res)
             payment_method_types: ['card'],
             mode: 'payment',
             line_items: lineItems,
-            metadata: { orderId },
+            ...(discounts ? { discounts } : {}),
+            metadata: {
+                orderId,
+                couponCode: String(couponCode || ''),
+                couponDiscount: String(discountAmountNumber || 0),
+            },
             customer_email: customerEmail || undefined,
             success_url: successUrl || `${siteUrl}/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl || `${siteUrl}/checkout?status=cancelled`,

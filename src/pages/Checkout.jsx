@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiMapPin, FiPackage, FiCreditCard, FiCheck, FiSearch, FiChevronDown } from 'react-icons/fi';
+import { FiMapPin, FiPackage, FiCreditCard, FiCheck, FiSearch, FiChevronDown, FiTag } from 'react-icons/fi';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useRegion } from '../context/RegionContext';
 import { useToast } from '../components/common/Toast';
 import { createOrder, updateOrderPaymentStatus } from '../services/orders';
+import { validateCoupon, calculateCouponDiscount, recordCouponUsage } from '../services/coupons';
 import {
     formatPrice,
     formatCurrency,
@@ -34,6 +35,12 @@ const Checkout = () => {
     const [exchangeRates, setExchangeRates] = useState({ EUR: 1 });
     const [ratesStale, setRatesStale] = useState(false);
     const countryRef = useRef(null);
+
+    // Coupon states
+    const [couponInput, setCouponInput] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [couponLoading, setCouponLoading] = useState(false);
+    const [couponError, setCouponError] = useState(null);
 
     const [address, setAddress] = useState({
         name: '', street: '', city: '', postalCode: '',
@@ -68,6 +75,24 @@ const Checkout = () => {
                                 await updateOrderPaymentStatus(data.orderId, 'paid', sessionId);
                             } catch (updateErr) {
                                 console.error('Failed to update order status in Firestore:', updateErr);
+                            }
+
+                            // Record coupon redemption if coupon was applied
+                            try {
+                                const savedCouponStr = sessionStorage.getItem('appliedCoupon');
+                                if (savedCouponStr) {
+                                    const parsedCoupon = JSON.parse(savedCouponStr);
+                                    if (parsedCoupon?.id) {
+                                        recordCouponUsage(parsedCoupon.id, {
+                                            orderId: data.orderId,
+                                            userEmail: user?.email || '',
+                                            discountAmount: parsedCoupon.discountAmount || 0,
+                                        }).catch(cErr => console.warn('Coupon redemption logging error:', cErr));
+                                    }
+                                    sessionStorage.removeItem('appliedCoupon');
+                                }
+                            } catch (cLogErr) {
+                                console.warn('Could not record saved coupon redemption:', cLogErr);
                             }
 
                             // Trigger Order Confirmation Email to Customer
@@ -137,13 +162,87 @@ const Checkout = () => {
     };
 
     const { subtotal, shipping, tax, total, shippingLabel, shippingZone, totalWeight } = calculateOrderTotals(items, address.country, settings);
+
+    // Calculate applied coupon discount
+    const couponDiscount = appliedCoupon
+        ? calculateCouponDiscount(appliedCoupon, { cartItems: items, subtotal, shipping })
+        : 0;
+
+    const finalTotalEur = Math.max(0, Math.round((total - couponDiscount) * 100) / 100);
+
     const localCurrency = getCurrencyForCountry(address.country);
     const paymentCurrency = getPaymentCurrencyForCountry(address.country);
-    const localTotal = convertFromEur(total, localCurrency, exchangeRates);
-    const paymentTotal = convertFromEur(total, paymentCurrency, exchangeRates);
+    const localTotal = convertFromEur(finalTotalEur, localCurrency, exchangeRates);
+    const paymentTotal = convertFromEur(finalTotalEur, paymentCurrency, exchangeRates);
     const exchangeRate = exchangeRates[localCurrency] || 1;
     const showConvertedTotal = address.country && localCurrency !== 'EUR';
     const paymentMethodsCopy = 'Cards, Apple Pay, Google Pay, and other methods supported by Stripe.';
+
+    // Auto-revalidate coupon if cart or subtotal changes
+    useEffect(() => {
+        if (appliedCoupon) {
+            validateCoupon(appliedCoupon.code, {
+                cartItems: items,
+                subtotal,
+                shipping,
+                userEmail: user?.email || address.phone || '',
+            }).then(res => {
+                if (!res.valid) {
+                    toast.warning(`Coupon "${appliedCoupon.code}" removed: ${res.error}`);
+                    setAppliedCoupon(null);
+                } else if (res.discountAmount !== appliedCoupon.discountAmount) {
+                    setAppliedCoupon(prev => prev ? {
+                        ...prev,
+                        discountAmount: res.discountAmount,
+                        discountLabel: res.discountLabel,
+                    } : null);
+                }
+            }).catch(() => {});
+        }
+    }, [items, subtotal, shipping]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleApplyCoupon = async (e) => {
+        if (e) e.preventDefault();
+        const code = couponInput.trim();
+        if (!code) {
+            toast.error('Please enter a coupon code');
+            return;
+        }
+        setCouponLoading(true);
+        setCouponError(null);
+        try {
+            const result = await validateCoupon(code, {
+                cartItems: items,
+                subtotal,
+                shipping,
+                userEmail: user?.email || address.phone || '',
+            });
+            if (!result.valid) {
+                setCouponError(result.error);
+                toast.error(result.error);
+                return;
+            }
+            setAppliedCoupon({
+                ...result.coupon,
+                discountAmount: result.discountAmount,
+                discountLabel: result.discountLabel,
+            });
+            setCouponInput('');
+            toast.success(result.message);
+        } catch (err) {
+            console.error('Coupon validation error:', err);
+            setCouponError('Failed to validate coupon code');
+            toast.error('Failed to validate coupon code');
+        } finally {
+            setCouponLoading(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setCouponError(null);
+        toast.info('Coupon removed');
+    };
 
     const copyToClipboard = (text, label) => {
         navigator.clipboard.writeText(text);
@@ -168,6 +267,21 @@ const Checkout = () => {
         setLoading(true);
 
         try {
+            // Cache applied coupon into sessionStorage for reliable post-payment attribution
+            if (appliedCoupon) {
+                try {
+                    sessionStorage.setItem('appliedCoupon', JSON.stringify({
+                        id: appliedCoupon.id,
+                        code: appliedCoupon.code,
+                        discountAmount: couponDiscount,
+                    }));
+                } catch (cStoreErr) {
+                    console.warn('Could not cache coupon in sessionStorage:', cStoreErr);
+                }
+            } else {
+                sessionStorage.removeItem('appliedCoupon');
+            }
+
             // 1. Create order in Firestore first (status: pending)
             toast.loading('Creating your order...', { id: 'payment-toast' });
 
@@ -181,7 +295,18 @@ const Checkout = () => {
                 shippingZone,
                 totalWeight,
                 tax: 0,
-                total,
+                originalTotal: total,
+                coupon: appliedCoupon ? {
+                    id: appliedCoupon.id,
+                    code: appliedCoupon.code,
+                    type: appliedCoupon.type,
+                    value: appliedCoupon.value,
+                    discountAmount: couponDiscount,
+                    discountLabel: appliedCoupon.discountLabel || '',
+                } : null,
+                couponCode: appliedCoupon?.code || null,
+                couponDiscount,
+                total: finalTotalEur,
                 displayCurrency: localCurrency,
                 displayTotal: localTotal,
                 paymentCurrency,
@@ -213,6 +338,9 @@ const Checkout = () => {
                     shippingLabel,
                     shippingAddress: address,
                     subtotal,
+                    couponCode: appliedCoupon?.code || '',
+                    couponDiscount,
+                    couponLabel: appliedCoupon?.discountLabel || '',
                     total: paymentTotal,
                     currency: paymentCurrency,
                     customerEmail: user.email,
@@ -399,6 +527,12 @@ const Checkout = () => {
                                         <span>Subtotal</span>
                                         <span>{formatPrice(subtotal)}</span>
                                     </div>
+                                    {couponDiscount > 0 && (
+                                        <div className="wise-simple-total" style={{ borderTop: 'none', paddingTop: 0, color: '#10b981' }}>
+                                            <span>Coupon ({appliedCoupon?.code})</span>
+                                            <span style={{ fontWeight: 600 }}>-{formatPrice(couponDiscount)}</span>
+                                        </div>
+                                    )}
                                     <div className="wise-simple-total" style={{ borderTop: 'none', paddingTop: 0 }}>
                                         <span>Shipping ({shippingLabel})</span>
                                         <span style={{ color: shipping === 0 ? 'var(--success)' : 'inherit' }}>
@@ -407,7 +541,7 @@ const Checkout = () => {
                                     </div>
                                     <div className="wise-simple-total" style={{ borderTop: '1px solid var(--border-color)', marginTop: '8px', paddingTop: '12px' }}>
                                         <span>Total Amount</span>
-                                        <strong>{formatPrice(total)}</strong>
+                                        <strong style={{ color: '#fcc419', fontSize: '1.2rem' }}>{formatPrice(finalTotalEur)}</strong>
                                     </div>
                                     {showConvertedTotal && (
                                         <div className="wise-simple-total" style={{ borderTop: 'none', paddingTop: 0, opacity: 0.7 }}>
@@ -419,7 +553,7 @@ const Checkout = () => {
                                 <div className="checkout-nav">
                                     <button className="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
                                     <button className="btn btn-primary btn-lg" onClick={handlePlaceOrder} disabled={loading}>
-                                        {loading ? 'Redirecting to Stripe...' : `Pay ${formatPrice(total)} Now`}
+                                        {loading ? 'Redirecting to Stripe...' : `Pay ${formatPrice(finalTotalEur)} Now`}
                                     </button>
                                 </div>
                             </motion.div>
@@ -455,17 +589,113 @@ const Checkout = () => {
                                 {items.map(item => (
                                     <div key={`${item.id}-${item.size}`} className="summary-row"><span>{item.name} × {item.quantity}</span><span>{formatPrice(item.price * item.quantity)}</span></div>
                                 ))}
-                                <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '10px' }}>
+
+                                {/* Promo Code Box */}
+                                <div style={{
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '8px',
+                                    padding: '10px 12px',
+                                    marginTop: '12px',
+                                    marginBottom: '12px',
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-color)', marginBottom: '8px' }}>
+                                        <FiTag style={{ color: '#f59e0b' }} />
+                                        <span>Promo / Discount Code</span>
+                                    </div>
+
+                                    {appliedCoupon ? (
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            background: 'rgba(16, 185, 129, 0.12)',
+                                            border: '1px solid rgba(16, 185, 129, 0.35)',
+                                            borderRadius: '6px',
+                                            padding: '8px 10px',
+                                        }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>
+                                                    <span>🏷️ {appliedCoupon.code}</span>
+                                                    <span style={{ fontSize: '0.72rem', fontWeight: 500, color: '#a7f3d0' }}>({appliedCoupon.discountLabel})</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '2px' }}>
+                                                    Saving: -{formatPrice(couponDiscount)}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveCoupon}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#ef4444',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    padding: '2px 4px',
+                                                }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={handleApplyCoupon} style={{ display: 'flex', gap: '6px' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Enter Code (e.g. VINTAGE20)"
+                                                value={couponInput}
+                                                onChange={e => {
+                                                    setCouponInput(e.target.value.toUpperCase().replace(/\s+/g, ''));
+                                                    setCouponError(null);
+                                                }}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '7px 9px',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    border: couponError ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                                                    borderRadius: '6px',
+                                                    color: '#fff',
+                                                    fontFamily: 'monospace',
+                                                    fontSize: '0.82rem',
+                                                    textTransform: 'uppercase',
+                                                }}
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="btn btn-secondary btn-sm"
+                                                disabled={couponLoading || !couponInput.trim()}
+                                                style={{ whiteSpace: 'nowrap', padding: '0 12px', fontSize: '0.8rem' }}
+                                            >
+                                                {couponLoading ? '...' : 'Apply'}
+                                            </button>
+                                        </form>
+                                    )}
+
+                                    {couponError && (
+                                        <div style={{ fontSize: '0.72rem', color: '#ef4444', marginTop: '6px' }}>
+                                            ⚠️ {couponError}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="summary-row" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px', marginTop: '6px' }}>
                                     <span>Subtotal</span>
                                     <span>{formatPrice(subtotal)}</span>
                                 </div>
+                                {couponDiscount > 0 && (
+                                    <div className="summary-row" style={{ color: '#10b981' }}>
+                                        <span>Discount ({appliedCoupon?.code})</span>
+                                        <span style={{ fontWeight: 600 }}>-{formatPrice(couponDiscount)}</span>
+                                    </div>
+                                )}
                                 <div className="summary-row">
                                     <span>Shipping ({shippingLabel})</span>
                                     <span style={{ color: shipping === 0 ? 'var(--success)' : 'inherit', fontWeight: 600 }}>
                                         {shipping === 0 ? 'FREE' : formatPrice(shipping)}
                                     </span>
                                 </div>
-                                <div className="summary-row summary-total"><span>Total</span><span>{formatPrice(total)}</span></div>
+                                <div className="summary-row summary-total"><span>Total</span><span style={{ color: '#fcc419' }}>{formatPrice(finalTotalEur)}</span></div>
                                 {shipping === 0 ? (
                                     <p className="free-shipping-note" style={{ color: 'var(--success)', marginTop: '8px' }}>✓ Shipping & taxes included</p>
                                 ) : (
