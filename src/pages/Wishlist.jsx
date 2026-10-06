@@ -24,6 +24,7 @@ const Wishlist = () => {
             id: item.productId || item.id,
             name: item.name,
             price: item.price,
+            category: item.category || '',
             images: [item.image],
         });
         toast.success(`${item.name} added to cart!`);

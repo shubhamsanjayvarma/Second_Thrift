@@ -82,11 +82,12 @@ const Checkout = () => {
                                 const savedCouponStr = sessionStorage.getItem('appliedCoupon');
                                 if (savedCouponStr) {
                                     const parsedCoupon = JSON.parse(savedCouponStr);
-                                    if (parsedCoupon?.id) {
+                                    if (parsedCoupon?.id || parsedCoupon?.code) {
                                         recordCouponUsage(parsedCoupon.id, {
                                             orderId: data.orderId,
-                                            userEmail: user?.email || '',
+                                            userEmail: user?.email || data.customerEmail || '',
                                             discountAmount: parsedCoupon.discountAmount || 0,
+                                            couponCode: parsedCoupon.code,
                                         }).catch(cErr => console.warn('Coupon redemption logging error:', cErr));
                                     }
                                     sessionStorage.removeItem('appliedCoupon');

@@ -1264,6 +1264,306 @@ app.get('/api/shipglobal/track/:trackingId', async (req, res) => {
     }
 });
 
+// ============ COUPON MANAGEMENT & VALIDATION SYSTEM ============
+
+const normalizeCouponCode = (code) => {
+    return (code || '').trim().toUpperCase().replace(/\s+/g, '');
+};
+
+// 1. Get all coupons (Admin / API)
+app.get('/api/coupons', async (req, res) => {
+    try {
+        const { db } = await connectDB();
+        const coupons = await db.collection('coupons').find({}).sort({ createdAt: -1 }).toArray();
+        res.json(coupons.map(c => ({ ...c, id: c.id || c._id.toString() })));
+    } catch (err) {
+        console.error('API Get Coupons error:', err);
+        res.status(500).json({ error: 'Failed to fetch coupons: ' + err.message });
+    }
+});
+
+// 2. Create or sync a coupon (Admin / Dual-Tier Sync)
+app.post('/api/coupons', async (req, res) => {
+    try {
+        const couponData = req.body;
+        const code = normalizeCouponCode(couponData.code);
+        if (!code) {
+            return res.status(400).json({ error: 'Coupon code is required' });
+        }
+
+        const type = couponData.type || 'percentage';
+        const value = type === 'shipping' ? 0 : parseFloat(couponData.value);
+        if (type !== 'shipping' && (isNaN(value) || value <= 0)) {
+            return res.status(400).json({ error: 'Please enter a valid discount value greater than 0' });
+        }
+        if (type === 'percentage' && value > 100) {
+            return res.status(400).json({ error: 'Percentage discount cannot exceed 100%' });
+        }
+
+        const { db } = await connectDB();
+
+        const customId = couponData.id || `cpn_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+        const existing = await db.collection('coupons').findOne({ code });
+        if (existing && existing.id !== customId && existing._id?.toString() !== couponData.id) {
+            return res.status(400).json({ error: `A coupon with code "${code}" already exists.` });
+        }
+
+        const newCoupon = {
+            id: customId,
+            code,
+            description: (couponData.description || '').trim(),
+            type,
+            value,
+            maxDiscountAmount: couponData.maxDiscountAmount ? parseFloat(couponData.maxDiscountAmount) : null,
+            minOrderValue: couponData.minOrderValue ? parseFloat(couponData.minOrderValue) : 0,
+            minQuantity: couponData.minQuantity ? parseInt(couponData.minQuantity, 10) : 0,
+            startDate: couponData.startDate ? new Date(couponData.startDate).toISOString() : null,
+            expiryDate: couponData.expiryDate ? new Date(couponData.expiryDate).toISOString() : null,
+            usageLimit: couponData.usageLimit ? parseInt(couponData.usageLimit, 10) : null,
+            usedCount: parseInt(couponData.usedCount || 0, 10),
+            perUserLimit: couponData.perUserLimit ? parseInt(couponData.perUserLimit, 10) : 1,
+            applicableCategories: Array.isArray(couponData.applicableCategories) ? couponData.applicableCategories : [],
+            applicableProducts: Array.isArray(couponData.applicableProducts) ? couponData.applicableProducts : [],
+            redeemedBy: Array.isArray(couponData.redeemedBy) ? couponData.redeemedBy : [],
+            isActive: couponData.isActive !== false,
+            createdAt: couponData.createdAt ? new Date(couponData.createdAt) : new Date(),
+            updatedAt: new Date(),
+        };
+
+        await db.collection('coupons').updateOne(
+            { $or: [{ id: customId }, { code }] },
+            { $set: newCoupon },
+            { upsert: true }
+        );
+
+        console.log(`🎟️ Coupon created/updated in MongoDB: ${code} (${customId})`);
+        res.json({ success: true, id: customId, coupon: newCoupon });
+    } catch (err) {
+        console.error('API Create Coupon error:', err);
+        res.status(500).json({ error: 'Failed to create coupon: ' + err.message });
+    }
+});
+
+// 3. Update an existing coupon
+app.put('/api/coupons/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = { ...req.body, updatedAt: new Date() };
+        if (updates.code) {
+            updates.code = normalizeCouponCode(updates.code);
+        }
+        delete updates._id;
+
+        const { db } = await connectDB();
+        await db.collection('coupons').updateOne(
+            { $or: [{ id }, { _id: ObjectId.isValid(id) ? new ObjectId(id) : null }, { code: id.toUpperCase() }] },
+            { $set: updates }
+        );
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('API Update Coupon error:', err);
+        res.status(500).json({ error: 'Failed to update coupon: ' + err.message });
+    }
+});
+
+// 4. Delete a coupon
+app.delete('/api/coupons/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { db } = await connectDB();
+        await db.collection('coupons').deleteOne({
+            $or: [{ id }, { _id: ObjectId.isValid(id) ? new ObjectId(id) : null }, { code: id.toUpperCase() }]
+        });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('API Delete Coupon error:', err);
+        res.status(500).json({ error: 'Failed to delete coupon: ' + err.message });
+    }
+});
+
+// 5. Validate a coupon at checkout
+app.post('/api/coupons/validate', async (req, res) => {
+    try {
+        const { code, cartItems = [], subtotal = 0, shipping = 0, userEmail = '', totalQuantity = 0 } = req.body;
+        const normalized = normalizeCouponCode(code);
+        if (!normalized) {
+            return res.status(400).json({ valid: false, error: 'Please enter a coupon code' });
+        }
+
+        const { db } = await connectDB();
+        const coupon = await db.collection('coupons').findOne({ code: normalized });
+        if (!coupon) {
+            return res.json({ valid: false, error: `Coupon code "${normalized}" is invalid or does not exist.` });
+        }
+
+        if (!coupon.isActive) {
+            return res.json({ valid: false, error: `Coupon "${normalized}" is currently disabled or inactive.` });
+        }
+
+        const now = new Date();
+        if (coupon.startDate) {
+            const start = new Date(coupon.startDate);
+            if (!isNaN(start.getTime()) && now < start) {
+                return res.json({
+                    valid: false,
+                    error: `Coupon "${normalized}" will become active on ${start.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                });
+            }
+        }
+
+        if (coupon.expiryDate) {
+            const expiry = new Date(coupon.expiryDate);
+            if (!isNaN(expiry.getTime()) && now > expiry) {
+                return res.json({
+                    valid: false,
+                    error: `Coupon "${normalized}" expired on ${expiry.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`
+                });
+            }
+        }
+
+        if (coupon.usageLimit && (coupon.usedCount || 0) >= coupon.usageLimit) {
+            return res.json({
+                valid: false,
+                error: `Coupon "${normalized}" has reached its maximum redemption limit.`
+            });
+        }
+
+        if (userEmail && coupon.perUserLimit && Array.isArray(coupon.redeemedBy)) {
+            const normalizedEmail = userEmail.trim().toLowerCase();
+            const userRedemptions = coupon.redeemedBy.filter(r => (r.email || '').trim().toLowerCase() === normalizedEmail).length;
+            if (userRedemptions >= coupon.perUserLimit) {
+                return res.json({
+                    valid: false,
+                    error: `You have already used coupon "${normalized}" the maximum allowed times (${coupon.perUserLimit}).`
+                });
+            }
+        }
+
+        const subtotalNum = Number(subtotal) || 0;
+        if (coupon.minOrderValue && coupon.minOrderValue > 0) {
+            if (subtotalNum < coupon.minOrderValue) {
+                return res.json({
+                    valid: false,
+                    error: `Coupon "${normalized}" requires a minimum order subtotal of €${coupon.minOrderValue.toFixed(2)} (Current: €${subtotalNum.toFixed(2)}).`
+                });
+            }
+        }
+
+        const itemsCount = totalQuantity > 0 ? totalQuantity : (Array.isArray(cartItems) ? cartItems.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0) : 0);
+        if (coupon.minQuantity && coupon.minQuantity > 0) {
+            if (itemsCount < coupon.minQuantity) {
+                return res.json({
+                    valid: false,
+                    error: `Coupon "${normalized}" requires at least ${coupon.minQuantity} items in your cart (Current: ${itemsCount}).`
+                });
+            }
+        }
+
+        // Category filter check (fuzzy/slug matching)
+        let eligibleSubtotal = subtotalNum;
+        if (Array.isArray(coupon.applicableCategories) && coupon.applicableCategories.length > 0) {
+            const qualifyingItems = (Array.isArray(cartItems) ? cartItems : []).filter(item => {
+                const itemCat = (item.category || '').toLowerCase().trim();
+                return coupon.applicableCategories.some(c => {
+                    const normC = c.toLowerCase().trim();
+                    return itemCat === normC || itemCat.includes(normC) || normC.includes(itemCat);
+                });
+            });
+
+            if (qualifyingItems.length === 0) {
+                return res.json({
+                    valid: false,
+                    error: `Coupon "${normalized}" applies only to products in: ${coupon.applicableCategories.join(', ')}.`
+                });
+            }
+            eligibleSubtotal = qualifyingItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
+        }
+
+        let discount = 0;
+        const shippingNum = Number(shipping) || 0;
+        if (coupon.type === 'percentage') {
+            discount = (eligibleSubtotal * Number(coupon.value)) / 100;
+            if (coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0) {
+                discount = Math.min(discount, Number(coupon.maxDiscountAmount));
+            }
+        } else if (coupon.type === 'fixed') {
+            discount = Math.min(Number(coupon.value), eligibleSubtotal);
+        } else if (coupon.type === 'shipping') {
+            discount = shippingNum;
+            if (shippingNum <= 0) {
+                return res.json({
+                    valid: false,
+                    error: 'Your order already qualifies for free shipping.'
+                });
+            }
+        }
+
+        discount = Math.max(0, Math.round(discount * 100) / 100);
+        if (discount <= 0 && coupon.type !== 'shipping') {
+            return res.json({
+                valid: false,
+                error: `Coupon "${normalized}" provides zero discount on the items in your cart.`
+            });
+        }
+
+        let discountLabel = '';
+        if (coupon.type === 'percentage') {
+            discountLabel = `${coupon.value}% OFF${coupon.maxDiscountAmount ? ` (Max €${coupon.maxDiscountAmount})` : ''}`;
+        } else if (coupon.type === 'fixed') {
+            discountLabel = `€${Number(coupon.value).toFixed(2)} Flat Discount`;
+        } else if (coupon.type === 'shipping') {
+            discountLabel = 'Free Shipping Applied';
+        }
+
+        res.json({
+            valid: true,
+            coupon: { ...coupon, id: coupon.id || coupon._id.toString() },
+            discountAmount: discount,
+            discountType: coupon.type,
+            discountLabel,
+            message: `Coupon "${coupon.code}" applied! You save €${discount.toFixed(2)} (${discountLabel}).`,
+        });
+    } catch (err) {
+        console.error('API Validate Coupon error:', err);
+        res.status(500).json({ valid: false, error: 'Validation failed: ' + err.message });
+    }
+});
+
+// 6. Record coupon usage upon order completion
+app.post('/api/coupons/redeem', async (req, res) => {
+    try {
+        const { couponId, code, orderId, userEmail, discountAmount } = req.body;
+        const { db } = await connectDB();
+
+        const query = couponId
+            ? { $or: [{ id: couponId }, { _id: ObjectId.isValid(couponId) ? new ObjectId(couponId) : null }] }
+            : { code: normalizeCouponCode(code) };
+
+        await db.collection('coupons').updateOne(
+            query,
+            {
+                $inc: { usedCount: 1 },
+                $push: {
+                    redeemedBy: {
+                        orderId: String(orderId || ''),
+                        email: (userEmail || '').trim().toLowerCase(),
+                        discountAmount: Number(discountAmount || 0),
+                        redeemedAt: new Date().toISOString(),
+                    }
+                },
+                $set: { updatedAt: new Date() }
+            }
+        );
+
+        console.log(`🎟️ Recorded redemption in MongoDB for coupon: ${couponId || code}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('API Redeem Coupon error:', err);
+        res.status(500).json({ error: 'Failed to record redemption: ' + err.message });
+    }
+});
+
 // ============ ERROR HANDLING ============
 app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {

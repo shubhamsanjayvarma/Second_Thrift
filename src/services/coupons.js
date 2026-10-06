@@ -1,10 +1,11 @@
 import {
     collection, doc, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
-    query, where, orderBy, serverTimestamp, onSnapshot, increment, arrayUnion
+    query, where, serverTimestamp, onSnapshot, increment, arrayUnion
 } from 'firebase/firestore';
 import { db } from './firebase';
 
 const couponsRef = collection(db, 'coupons');
+const getApiUrl = () => import.meta.env.VITE_API_URL || '';
 
 /**
  * Normalizes a coupon code to uppercase, trimmed, and without spaces.
@@ -14,10 +15,47 @@ export const normalizeCouponCode = (code) => {
 };
 
 /**
+ * Helper to call backend coupons API with error catching.
+ */
+const apiFetch = async (endpoint, options = {}) => {
+    try {
+        const url = `${getApiUrl()}${endpoint}`;
+        const res = await fetch(url, {
+            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            ...options,
+        });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `API request failed with status ${res.status}`);
+        }
+        return await res.json();
+    } catch (err) {
+        console.warn(`[Coupons API] ${endpoint} notice:`, err.message);
+        throw err;
+    }
+};
+
+/**
  * Subscribes to all coupons in real-time (for Admin panel).
+ * If Firestore gives permission-denied (or network issue), falls back to backend API.
  */
 export const subscribeToCoupons = (callback) => {
-    return onSnapshot(couponsRef, (snapshot) => {
+    let isSubscribed = true;
+    let pollInterval = null;
+
+    const fetchViaApi = async () => {
+        try {
+            const data = await apiFetch('/api/coupons');
+            if (isSubscribed && Array.isArray(data)) {
+                callback(data);
+            }
+        } catch (apiErr) {
+            console.error('Fallback coupons fetch error:', apiErr);
+            if (isSubscribed) callback([]);
+        }
+    };
+
+    const unsubscribe = onSnapshot(couponsRef, (snapshot) => {
         const coupons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // In-memory sort by createdAt descending
         coupons.sort((a, b) => {
@@ -27,9 +65,20 @@ export const subscribeToCoupons = (callback) => {
         });
         callback(coupons);
     }, (error) => {
-        console.error('Error subscribing to coupons:', error);
-        callback([]);
+        console.warn('Firestore coupons subscription restricted, falling back to API:', error.code || error.message);
+        // Immediately fetch via API
+        fetchViaApi();
+        // Start polling fallback every 10 seconds
+        if (!pollInterval) {
+            pollInterval = setInterval(fetchViaApi, 10000);
+        }
     });
+
+    return () => {
+        isSubscribed = false;
+        if (pollInterval) clearInterval(pollInterval);
+        unsubscribe();
+    };
 };
 
 /**
@@ -45,8 +94,12 @@ export const getAllCoupons = async () => {
             return timeB - timeA;
         });
     } catch (err) {
-        console.error('Error fetching coupons:', err);
-        return [];
+        console.warn('Firestore getDocs failed, trying API fallback:', err.message);
+        try {
+            return await apiFetch('/api/coupons');
+        } catch {
+            return [];
+        }
     }
 };
 
@@ -57,16 +110,34 @@ export const getCouponByCode = async (code) => {
     const normalized = normalizeCouponCode(code);
     if (!normalized) return null;
 
-    const q = query(couponsRef, where('code', '==', normalized));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
+    try {
+        const q = query(couponsRef, where('code', '==', normalized));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            const docSnap = snapshot.docs[0];
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+    } catch (firestoreErr) {
+        console.warn('Firestore getCouponByCode query blocked, using API fallback:', firestoreErr.message);
+    }
 
-    const docSnap = snapshot.docs[0];
-    return { id: docSnap.id, ...docSnap.data() };
+    // Fallback: check via backend API
+    try {
+        const all = await apiFetch('/api/coupons');
+        if (Array.isArray(all)) {
+            const match = all.find(c => normalizeCouponCode(c.code) === normalized);
+            if (match) return match;
+        }
+    } catch {
+        // Fallback silently failed
+    }
+
+    return null;
 };
 
 /**
  * Creates a new coupon with validation.
+ * Uses dual-tier persistence: tries Firestore, falls back to or syncs with MongoDB API.
  */
 export const createCoupon = async (couponData) => {
     const code = normalizeCouponCode(couponData.code);
@@ -80,19 +151,23 @@ export const createCoupon = async (couponData) => {
         throw new Error(`A coupon with code "${code}" already exists.`);
     }
 
-    const value = parseFloat(couponData.value);
-    if (isNaN(value) || value <= 0) {
-        throw new Error('Please enter a valid discount value greater than 0');
-    }
-
-    if (couponData.type === 'percentage' && value > 100) {
-        throw new Error('Percentage discount cannot exceed 100%');
+    const type = couponData.type || 'percentage';
+    let value = parseFloat(couponData.value);
+    if (type === 'shipping') {
+        value = 0; // Free shipping coupons don't require positive numerical value
+    } else {
+        if (isNaN(value) || value <= 0) {
+            throw new Error('Please enter a valid discount value greater than 0');
+        }
+        if (type === 'percentage' && value > 100) {
+            throw new Error('Percentage discount cannot exceed 100%');
+        }
     }
 
     const newCoupon = {
         code,
         description: (couponData.description || '').trim(),
-        type: couponData.type || 'percentage', // 'percentage' | 'fixed' | 'shipping'
+        type,
         value,
         maxDiscountAmount: couponData.maxDiscountAmount ? parseFloat(couponData.maxDiscountAmount) : null,
         minOrderValue: couponData.minOrderValue ? parseFloat(couponData.minOrderValue) : 0,
@@ -110,21 +185,51 @@ export const createCoupon = async (couponData) => {
         updatedAt: serverTimestamp(),
     };
 
-    const docRef = await addDoc(couponsRef, newCoupon);
-    return docRef.id;
+    let createdId = null;
+
+    // 1. Try Firestore creation
+    try {
+        const docRef = await addDoc(couponsRef, newCoupon);
+        createdId = docRef.id;
+    } catch (firestoreErr) {
+        console.warn('Firestore createCoupon restricted (rules not applied yet), saving via API:', firestoreErr.message);
+    }
+
+    // 2. Dual-tier sync to backend API (MongoDB)
+    try {
+        const apiPayload = {
+            ...newCoupon,
+            id: createdId || `cpn_${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        const apiRes = await apiFetch('/api/coupons', {
+            method: 'POST',
+            body: JSON.stringify(apiPayload),
+        });
+        if (!createdId && apiRes?.id) {
+            createdId = apiRes.id;
+        }
+    } catch (apiErr) {
+        console.warn('Coupons API sync warning:', apiErr.message);
+    }
+
+    if (!createdId) {
+        throw new Error('Failed to create coupon. Please check Firestore security rules or server connection.');
+    }
+
+    return createdId;
 };
 
 /**
  * Updates an existing coupon.
  */
 export const updateCoupon = async (id, couponData) => {
-    const docRef = doc(db, 'coupons', id);
     const code = normalizeCouponCode(couponData.code);
 
     if (code) {
-        // If code changed, check uniqueness
         const existing = await getCouponByCode(code);
-        if (existing && existing.id !== id) {
+        if (existing && existing.id !== id && existing._id !== id) {
             throw new Error(`Coupon code "${code}" is already in use by another coupon.`);
         }
     }
@@ -136,7 +241,9 @@ export const updateCoupon = async (id, couponData) => {
     if (code) updates.code = code;
     if (couponData.description !== undefined) updates.description = (couponData.description || '').trim();
     if (couponData.type) updates.type = couponData.type;
-    if (couponData.value !== undefined) updates.value = parseFloat(couponData.value);
+    if (couponData.value !== undefined) {
+        updates.value = couponData.type === 'shipping' ? 0 : parseFloat(couponData.value);
+    }
     if (couponData.maxDiscountAmount !== undefined) {
         updates.maxDiscountAmount = couponData.maxDiscountAmount ? parseFloat(couponData.maxDiscountAmount) : null;
     }
@@ -165,7 +272,27 @@ export const updateCoupon = async (id, couponData) => {
         updates.isActive = Boolean(couponData.isActive);
     }
 
-    await updateDoc(docRef, updates);
+    let firestoreSuccess = false;
+    try {
+        const docRef = doc(db, 'coupons', id);
+        await updateDoc(docRef, updates);
+        firestoreSuccess = true;
+    } catch (fsErr) {
+        console.warn('Firestore updateCoupon restricted, saving via API:', fsErr.message);
+    }
+
+    // Sync to API
+    try {
+        await apiFetch(`/api/coupons/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ ...updates, updatedAt: new Date().toISOString() }),
+        });
+    } catch (apiErr) {
+        if (!firestoreSuccess) {
+            throw apiErr;
+        }
+    }
+
     return true;
 };
 
@@ -173,20 +300,66 @@ export const updateCoupon = async (id, couponData) => {
  * Toggles coupon status (active/paused).
  */
 export const toggleCouponStatus = async (id, currentStatus) => {
-    const docRef = doc(db, 'coupons', id);
-    await updateDoc(docRef, {
-        isActive: !currentStatus,
-        updatedAt: serverTimestamp(),
-    });
+    const newStatus = !currentStatus;
+    let fsSuccess = false;
+    try {
+        const docRef = doc(db, 'coupons', id);
+        await updateDoc(docRef, {
+            isActive: newStatus,
+            updatedAt: serverTimestamp(),
+        });
+        fsSuccess = true;
+    } catch (fsErr) {
+        console.warn('Firestore toggleCouponStatus restricted, saving via API:', fsErr.message);
+    }
+
+    try {
+        await apiFetch(`/api/coupons/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ isActive: newStatus, updatedAt: new Date().toISOString() }),
+        });
+    } catch (apiErr) {
+        if (!fsSuccess) throw apiErr;
+    }
 };
 
 /**
  * Permanently deletes a coupon.
  */
 export const deleteCoupon = async (id) => {
-    const docRef = doc(db, 'coupons', id);
-    await deleteDoc(docRef);
+    let fsSuccess = false;
+    try {
+        const docRef = doc(db, 'coupons', id);
+        await deleteDoc(docRef);
+        fsSuccess = true;
+    } catch (fsErr) {
+        console.warn('Firestore deleteCoupon restricted, deleting via API:', fsErr.message);
+    }
+
+    try {
+        await apiFetch(`/api/coupons/${id}`, { method: 'DELETE' });
+    } catch (apiErr) {
+        if (!fsSuccess) throw apiErr;
+    }
+
     return true;
+};
+
+/**
+ * Helper to match product category against coupon applicable categories.
+ * Handles exact matches as well as category slugs and hyphens (e.g. 'levis-jeans' matches 'jeans').
+ */
+export const matchesCouponCategory = (itemCategory, applicableCategories = []) => {
+    if (!Array.isArray(applicableCategories) || applicableCategories.length === 0) {
+        return true;
+    }
+    const itemCat = (itemCategory || '').toLowerCase().trim();
+    if (!itemCat) return false;
+
+    return applicableCategories.some(c => {
+        const target = (c || '').toLowerCase().trim();
+        return itemCat === target || itemCat.includes(target) || target.includes(itemCat);
+    });
 };
 
 /**
@@ -195,14 +368,11 @@ export const deleteCoupon = async (id) => {
 export const calculateCouponDiscount = (coupon, { cartItems = [], subtotal = 0, shipping = 0 }) => {
     if (!coupon || !coupon.isActive) return 0;
 
-    let eligibleSubtotal = subtotal;
+    let eligibleSubtotal = Number(subtotal) || 0;
 
     // If categories are specified, calculate subtotal only from eligible items
     if (Array.isArray(coupon.applicableCategories) && coupon.applicableCategories.length > 0) {
-        const eligibleItems = cartItems.filter(item => {
-            const cat = (item.category || '').toLowerCase();
-            return coupon.applicableCategories.some(c => c.toLowerCase() === cat);
-        });
+        const eligibleItems = cartItems.filter(item => matchesCouponCategory(item.category, coupon.applicableCategories));
         eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1), 0);
     }
 
@@ -223,7 +393,6 @@ export const calculateCouponDiscount = (coupon, { cartItems = [], subtotal = 0, 
         discount = Number(shipping) || 0;
     }
 
-    // Never return negative or NaN, round to 2 decimals
     return Math.max(0, Math.round(discount * 100) / 100);
 };
 
@@ -244,22 +413,45 @@ export const validateCoupon = async (code, {
         return { valid: false, error: 'Please enter a coupon code' };
     }
 
-    const coupon = await getCouponByCode(normalized);
-    if (!coupon) {
-        return { valid: false, error: `Coupon code "${normalized}" is invalid or does not exist.` };
+    // 1. Fetch coupon via Firestore or API fallback
+    let coupon = null;
+    try {
+        coupon = await getCouponByCode(normalized);
+    } catch (fetchErr) {
+        console.warn('Local coupon lookup error, attempting API validation:', fetchErr.message);
     }
 
-    // 1. Active status check
+    // If we could not find it locally or if we have backend API available, try API validation
+    if (!coupon) {
+        try {
+            const apiResult = await apiFetch('/api/coupons/validate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    code: normalized,
+                    cartItems,
+                    subtotal,
+                    shipping,
+                    userEmail,
+                    totalQuantity,
+                }),
+            });
+            return apiResult;
+        } catch {
+            return { valid: false, error: `Coupon code "${normalized}" is invalid or does not exist.` };
+        }
+    }
+
+    // 2. Active status check
     if (!coupon.isActive) {
         return { valid: false, error: `Coupon "${normalized}" is currently disabled or inactive.` };
     }
 
     const now = new Date();
 
-    // 2. Start Date check (Scheduled for future)
+    // 3. Start Date check (Scheduled for future)
     if (coupon.startDate) {
         const start = new Date(coupon.startDate);
-        if (now < start) {
+        if (!isNaN(start.getTime()) && now < start) {
             return {
                 valid: false,
                 error: `Coupon "${normalized}" will become active on ${start.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`
@@ -267,10 +459,10 @@ export const validateCoupon = async (code, {
         }
     }
 
-    // 3. Expiry Date check
+    // 4. Expiry Date check
     if (coupon.expiryDate) {
         const expiry = new Date(coupon.expiryDate);
-        if (now > expiry) {
+        if (!isNaN(expiry.getTime()) && now > expiry) {
             return {
                 valid: false,
                 error: `Coupon "${normalized}" expired on ${expiry.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.`
@@ -278,7 +470,7 @@ export const validateCoupon = async (code, {
         }
     }
 
-    // 4. Overall Usage Limit check
+    // 5. Overall Usage Limit check
     if (coupon.usageLimit && (coupon.usedCount || 0) >= coupon.usageLimit) {
         return {
             valid: false,
@@ -286,7 +478,7 @@ export const validateCoupon = async (code, {
         };
     }
 
-    // 5. Per-User Usage Limit check (if user email provided)
+    // 6. Per-User Usage Limit check (if user email provided)
     if (userEmail && coupon.perUserLimit && Array.isArray(coupon.redeemedBy)) {
         const normalizedEmail = userEmail.trim().toLowerCase();
         const userRedemptions = coupon.redeemedBy.filter(r => (r.email || '').trim().toLowerCase() === normalizedEmail).length;
@@ -298,17 +490,18 @@ export const validateCoupon = async (code, {
         }
     }
 
-    // 6. Minimum Order Value check
+    // 7. Minimum Order Value check
+    const subtotalNum = Number(subtotal) || 0;
     if (coupon.minOrderValue && coupon.minOrderValue > 0) {
-        if (subtotal < coupon.minOrderValue) {
+        if (subtotalNum < coupon.minOrderValue) {
             return {
                 valid: false,
-                error: `Coupon "${normalized}" requires a minimum order subtotal of €${coupon.minOrderValue.toFixed(2)} (Current: €${subtotal.toFixed(2)}).`
+                error: `Coupon "${normalized}" requires a minimum order subtotal of €${coupon.minOrderValue.toFixed(2)} (Current: €${subtotalNum.toFixed(2)}).`
             };
         }
     }
 
-    // 7. Minimum Quantity check
+    // 8. Minimum Quantity check
     const itemsCount = totalQuantity > 0 ? totalQuantity : cartItems.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
     if (coupon.minQuantity && coupon.minQuantity > 0) {
         if (itemsCount < coupon.minQuantity) {
@@ -319,12 +512,9 @@ export const validateCoupon = async (code, {
         }
     }
 
-    // 8. Applicable Categories check
+    // 9. Applicable Categories check
     if (Array.isArray(coupon.applicableCategories) && coupon.applicableCategories.length > 0) {
-        const hasQualifyingItem = cartItems.some(item => {
-            const cat = (item.category || '').toLowerCase();
-            return coupon.applicableCategories.some(c => c.toLowerCase() === cat);
-        });
+        const hasQualifyingItem = cartItems.some(item => matchesCouponCategory(item.category, coupon.applicableCategories));
         if (!hasQualifyingItem) {
             return {
                 valid: false,
@@ -333,10 +523,16 @@ export const validateCoupon = async (code, {
         }
     }
 
-    // 9. Calculate discount amount
+    // 10. Calculate discount amount
     const discountAmount = calculateCouponDiscount(coupon, { cartItems, subtotal, shipping });
 
     if (discountAmount <= 0) {
+        if (coupon.type === 'shipping') {
+            return {
+                valid: false,
+                error: 'Your order already qualifies for free shipping.'
+            };
+        }
         return {
             valid: false,
             error: `Coupon "${normalized}" provides zero discount on the items in your cart.`
@@ -347,7 +543,7 @@ export const validateCoupon = async (code, {
     if (coupon.type === 'percentage') {
         discountLabel = `${coupon.value}% OFF${coupon.maxDiscountAmount ? ` (Max €${coupon.maxDiscountAmount})` : ''}`;
     } else if (coupon.type === 'fixed') {
-        discountLabel = `€${coupon.value.toFixed(2)} Flat Discount`;
+        discountLabel = `€${Number(coupon.value).toFixed(2)} Flat Discount`;
     } else if (coupon.type === 'shipping') {
         discountLabel = 'Free Shipping Applied';
     }
@@ -363,24 +559,44 @@ export const validateCoupon = async (code, {
 };
 
 /**
- * Records coupon redemption in Firestore when an order is completed/paid.
+ * Records coupon redemption in Firestore and backend API when an order is completed/paid.
  */
-export const recordCouponUsage = async (couponId, { orderId, userEmail, discountAmount }) => {
-    if (!couponId) return;
+export const recordCouponUsage = async (couponId, { orderId, userEmail, discountAmount, couponCode }) => {
+    if (!couponId && !couponCode) return;
+
+    // 1. Try Firestore update
+    if (couponId) {
+        try {
+            const docRef = doc(db, 'coupons', couponId);
+            await updateDoc(docRef, {
+                usedCount: increment(1),
+                redeemedBy: arrayUnion({
+                    orderId: String(orderId || ''),
+                    email: (userEmail || '').trim().toLowerCase(),
+                    discountAmount: Number(discountAmount || 0),
+                    redeemedAt: new Date().toISOString(),
+                }),
+                updatedAt: serverTimestamp(),
+            });
+            console.log(`🎟️ Recorded redemption in Firestore for coupon ${couponId}`);
+        } catch (err) {
+            console.warn('Firestore recordCouponUsage restricted, falling back to API:', err.message);
+        }
+    }
+
+    // 2. Dual-tier sync to backend API (MongoDB)
     try {
-        const docRef = doc(db, 'coupons', couponId);
-        await updateDoc(docRef, {
-            usedCount: increment(1),
-            redeemedBy: arrayUnion({
-                orderId: orderId || '',
-                email: (userEmail || '').trim().toLowerCase(),
-                discountAmount: Number(discountAmount || 0),
-                redeemedAt: new Date().toISOString(),
+        await apiFetch('/api/coupons/redeem', {
+            method: 'POST',
+            body: JSON.stringify({
+                couponId,
+                code: couponCode,
+                orderId,
+                userEmail,
+                discountAmount,
             }),
-            updatedAt: serverTimestamp(),
         });
-        console.log(`🎟️ Recorded redemption for coupon ${couponId} by ${userEmail}`);
-    } catch (err) {
-        console.error('Failed to record coupon redemption:', err);
+    } catch (apiErr) {
+        console.warn('Backend coupon redeem notice:', apiErr.message);
     }
 };

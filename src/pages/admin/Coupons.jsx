@@ -15,9 +15,14 @@ import './Admin.css';
 
 const PREDEFINED_CATEGORIES = [
     { slug: 'jeans', label: 'Jeans & Denim' },
-    { slug: 'shorts', label: 'Shorts' },
+    { slug: 'levis-jeans', label: "Levi's Jeans" },
+    { slug: 'japanese-jeans', label: 'Japanese Denim' },
+    { slug: 'hip-hop-jeans', label: 'Hip Hop & Streetwear' },
+    { slug: 'y2k-women-flared-jeans', label: 'Y2K Flared Jeans' },
+    { slug: 'shorts', label: 'Shorts & Jorts' },
+    { slug: 'true-religion-jeans-shorts', label: 'True Religion Jeans/Shorts' },
+    { slug: 'mini-skirt', label: 'Skirts & Mini Skirts' },
     { slug: 'outerwear', label: 'Outerwear & Jackets' },
-    { slug: 'hip-hop', label: 'Hip Hop & Streetwear' },
     { slug: 'vintage', label: 'Vintage Collections' },
     { slug: 'bulk-deals', label: 'Bulk & Bales' },
     { slug: 'designer', label: 'Designer & Archive' },
